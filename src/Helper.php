@@ -11,8 +11,8 @@ use RuntimeException;
  * shell user, reaches it through `adb forward`, and keeps pig's background screen on it.
  *
  * The background screen is a virtual display the person never sees: an app launched there runs
- * while the phone is in use. The helper holds its picture and takes its screenshots; taps, keys
- * and launches go to it with adb (`input -d`, `am start --display`).
+ * while the phone is in use. The helper holds its picture, takes its screenshots and reads its view
+ * tree; taps, keys and launches go to it with adb (`input -d`, `am start --display`).
  *
  * Each request is one connection, one JSON line each way, with the token pig made when it started
  * the helper. The helper exits by itself after 15 minutes without a request.
@@ -22,7 +22,7 @@ final class Helper
     public const string REMOTE_DEX = '/data/local/tmp/pig-android-helper.dex';
     public const string MAIN_CLASS = 'pig.androiduse.helper.Main';
     /** Main.VERSION in the helper this package ships. */
-    public const int VERSION = 1;
+    public const int VERSION = 2;
     /** Android 12: the per-display user-activity call and the display flags the helper relies on. */
     public const int MIN_SDK = 31;
 
@@ -134,6 +134,20 @@ final class Helper
             'data' => $data,
             'method' => 'background_screen',
         ];
+    }
+
+    /**
+     * The background screen's view tree, as the XML `uiautomator dump` writes for the main screen.
+     */
+    public function tree(?string $serial, int $display): string
+    {
+        $xml = (string) ($this->request($serial, 'tree', ['id' => $display], 20.0)['xml'] ?? '');
+
+        if (!str_contains($xml, '<hierarchy')) {
+            throw new RuntimeException('The helper sent a view tree that is not uiautomator XML.');
+        }
+
+        return $xml;
     }
 
     /**

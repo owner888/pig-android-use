@@ -72,7 +72,7 @@ pig has a screen of its own on the phone that the person does not see: an app op
 
 - Open the app there: `android_launch_app(package="com.tencent.mm", screen="background")`. Then pass `screen="background"` to every call for that work — `android_observe`, `android_tap`, `android_swipe`, `android_type_text`, `android_press_button`, `android_batch`, `android_tree`. A call without it goes to the main screen, in front of the person.
 - Coordinates come from that screen's own screenshot, as on the main screen.
-- `android_tree` has no view tree there (uiautomator reads the main screen only): it returns the screen text by OCR on macOS, or the screenshot.
+- `android_tree(screen="background")` reads its view tree as on the main screen, and is the fast way to find a target there.
 - `home` has no launcher there; open another app with `android_launch_app` instead.
 - One app runs in one place: an app open on the background screen is not also on the main screen. If the person opens it themselves, it moves to them; open it again in the background when they are done.
 - It is awake while the phone's screen is: when the phone sleeps or locks, the background screen stops too (on systems that keep it in the main screen's display group, as Android 17 does). Wake the phone with `android_ready` first.

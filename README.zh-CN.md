@@ -63,7 +63,7 @@ pig install git:github.com/owner888/pig-android-use
 
 ### 后台副屏
 
-`screen: "background"` 操作的是 pig 在手机上自己的一块屏，用户看不到：用 `android_launch_app(screen="background")` 在上面打开的 App 照常运行，用户可以同时用手机。这块屏是 pig 在手机上运行的一个小助手建的虚拟屏（`helper/`，Java，不依赖任何库）：pig 把 `helper/pig-android-helper.dex` 推到 `/data/local/tmp`，以 shell 身份用 `app_process` 启动，通过 `adb forward` 和它通信，请求要带只有 pig 知道的令牌。小助手负责持有这块屏和截图；点击、按键、启动 App 用 adb 发过去（`input -d`、`am start --display`）。控件树只能读主屏，所以在后台副屏上 `android_tree` 给的是屏幕文字（OCR）或截图。
+`screen: "background"` 操作的是 pig 在手机上自己的一块屏，用户看不到：用 `android_launch_app(screen="background")` 在上面打开的 App 照常运行，用户可以同时用手机。这块屏是 pig 在手机上运行的一个小助手建的虚拟屏（`helper/`，Java，不依赖任何库）：pig 把 `helper/pig-android-helper.dex` 推到 `/data/local/tmp`，以 shell 身份用 `app_process` 启动，通过 `adb forward` 和它通信，请求要带只有 pig 知道的令牌。小助手负责持有这块屏、截图和读控件树（通过 UiAutomation 读取，每次读时连上、读完断开，这样主屏的 `uiautomator dump` 照常可用，也不会屏蔽用户手机上已开启的无障碍服务）；点击、按键、启动 App 用 adb 发过去（`input -d`、`am start --display`）。
 
 需要 Android 12 及以上。如果系统把这块屏放进主屏所在的显示组（Android 17 就是这样，`create` 的返回里会显示 `group=0`），手机息屏时它也会跟着停；这种情况下 pig 不会替它保持常亮，因为那样会让用户的主屏也一直亮着。`/android background` 查看状态，`/android background off` 关掉它和上面的 App；小助手 15 分钟没有请求会自己退出。
 

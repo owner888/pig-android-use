@@ -595,23 +595,20 @@ final class Extension
                     'serial' => ['type' => 'string', 'description' => 'Optional specific device serial number.'],
                 ],
             ],
-            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale, $screenOf): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale, $screenOf, $helper): AgentToolResult {
                 $serial = $params['serial'] ?? null;
                 $display = $screenOf($params, $serial);
                 $maxNodes = max(1, min(200, (int) ($params['max_nodes'] ?? 60)));
 
-                // A failed dump (a secure or custom-drawn surface) is a tree with nothing in it, and so
-                // is the background screen's: `uiautomator dump` reads the main screen only.
-                $rawXml = $display === null ? ($adb->dumpWindowHierarchy($serial) ?? '') : '';
+                // A failed dump (a secure or custom-drawn surface) is a tree with nothing in it.
+                // `uiautomator dump` reads the main screen only; the helper reads the background one.
+                $rawXml = $display === null ? ($adb->dumpWindowHierarchy($serial) ?? '') : $helper->tree($serial, $display);
                 $check = TreeQuality::ofTree($rawXml);
                 $focus = $display === null ? $adb->currentFocus($serial) : $adb->displayFocus($display, $serial);
                 $result = [
                     'app' => $focus['package'] ?? 'unknown',
                     'activity' => $focus['activity'] ?? 'unknown',
                 ];
-                if ($display !== null) {
-                    $result['tree'] = 'not available on the background screen (uiautomator reads the main screen only); the screen text or the screenshot stands in for it';
-                }
                 $image = null;
 
                 if ($check['quality'] !== TreeQuality::ADEQUATE) {
