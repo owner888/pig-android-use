@@ -50,6 +50,10 @@ pig install git:github.com/owner888/pig-android-use
 
 这些说明来自 [Mika](https://github.com/wangzan101/Mika)（Apache-2.0），原样收录，保持 Mika 写的中文——见 [NOTICE](NOTICE)。
 
+### 其他 skill
+
+另外三个来自 Mika 的 skill，中文：`messaging`（读聊天和邮件、拟稿、发给对的人并确认已发出）、`info-research`（追到原始出处、多方核对、写明出处和时间）和 `content-transcribe`（把文章、视频、播客整理成摘要、章节和引文）。`info-research` 和 `content-transcribe` 里原来的 Mika 工具名换成了 pig 的（`web_search`、`fetch_web_page`、`read`）。
+
 ## 配置
 
 | 变量 | 含义 |

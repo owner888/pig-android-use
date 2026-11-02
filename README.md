@@ -50,6 +50,10 @@ The `android-use` skill tells the model when to use these tools: **adb from bash
 
 These notes come from [Mika](https://github.com/wangzan101/Mika) (Apache-2.0), unmodified and in Chinese, as Mika wrote them — see [NOTICE](NOTICE).
 
+### More skills
+
+Three more skills from Mika, in Chinese: `messaging` (read chats and mail, draft and send to the right person, check it went out), `info-research` (find the original source, cross-check, cite source and date) and `content-transcribe` (summaries, chapters and quotes from articles, videos and podcasts). `info-research` and `content-transcribe` name pig's tools (`web_search`, `fetch_web_page`, `read`) where Mika's had its own.
+
 ## Configuration
 
 | Variable | Meaning |

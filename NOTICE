@@ -7,5 +7,10 @@ This product includes the app knowledge files in skills/android-use/apps/
 commit ebb0e44750d80aabb6b642c69908825d6b1a8107), licensed under the
 Apache License, Version 2.0.
 
+It also includes three of Mika's skills from core/src/main/resources/skills/
+at the same commit: skills/messaging/ (unmodified), and skills/info-research/
+and skills/content-transcribe/, modified to name pig's tools in place of
+Mika's; each modified file says so at its top.
+
 Mika
 Copyright 2026 wangzan101

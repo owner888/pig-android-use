@@ -10,20 +10,23 @@ use Pig\CodingAgent\Utils\Yaml;
 
 /**
  * The app notes under `skills/android-use/apps/` are files the skill points the model at, not
- * skills: the walk stops at the folder's `SKILL.md`, so the package's skills directory loads as
- * the one skill. And each note says which app it is for, which is how the skill tells the model to
+ * skills: the walk stops at the folder's `SKILL.md`, so `android-use` loads as one skill beside the
+ * package's other skills, and no `APP.md` becomes one. And each note says which app it is for, which is how the skill tells the model to
  * find it.
  */
 final class AppKnowledgeTest extends TestCase
 {
     private const string SKILLS = __DIR__ . '/../../skills';
 
-    public function testTheSkillsDirectoryIsOneSkillAndTheAppNotesAreNotSkills(): void
+    public function testEachSkillFolderIsOneSkillAndTheAppNotesAreNotSkills(): void
     {
         [$skills, $warnings] = Skills::fromDirectories([self::SKILLS]);
 
         $this->assertSame([], $warnings);
-        $this->assertSame(['android-use'], array_map(static fn ($s): string => $s->name, $skills));
+        $this->assertSame(
+            ['android-use', 'content-transcribe', 'info-research', 'messaging'],
+            array_map(static fn ($s): string => $s->name, $skills),
+        );
     }
 
     public function testEveryAppNoteNamesItsAppAndPackages(): void
