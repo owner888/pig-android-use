@@ -561,7 +561,9 @@ final class Extension
                 $failed = $res['exit'] !== 0 || str_contains($res['stdout'] . $res['stderr'], 'Error');
                 $reply = ['action_executed' => true, 'package' => $pkg, 'success' => !$failed];
                 if ($display !== null) {
+                    // Its display id, for adb commands aimed at it (`am start --display N`).
                     $reply['screen'] = 'background';
+                    $reply['display'] = $display;
                 }
                 if ($failed) {
                     $reply['error'] = trim($res['stdout'] . ' ' . $res['stderr']);

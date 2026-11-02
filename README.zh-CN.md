@@ -20,7 +20,7 @@ pig install git:github.com/owner888/pig-android-use
 | --- | --- |
 | `android_ready` | 检查设备、点亮屏幕，返回前台 App、视口大小和一张截图。先调它。 |
 | `android_observe` | 截图和/或前台 App |
-| `android_tree` | 精简的控件树节点，由手机端小助手读取（见下文；需 Android 12+）（`type`、`text`、`desc`、`id`、`rect`）——原生 App 里的精确目标。会说明控件树够不够用（`tree_quality`）；不够用时补上树里没有的屏幕文字（OCR，macOS）或截图 |
+| `android_tree` | 精简的控件树节点，由手机端小助手读取（见下文；需 Android 12+）（`type`、`text`、`desc`、`id`、`tap`——可直接点击的坐标——和 `rect`）——原生 App 里的精确目标。会说明控件树够不够用（`tree_quality`）；不够用时补上树里没有的屏幕文字（OCR，macOS）或截图 |
 | `android_tap` | 按截图坐标点击；自动换算成设备像素，带 ±2 像素抖动 |
 | `android_swipe` | 按方向滑动，或在两点之间拖动 |
 | `android_type_text` | 往获得焦点的输入框里打字——中文、符号、多行都行（走 Android 剪贴板，不用装输入法 App） |

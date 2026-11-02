@@ -207,6 +207,7 @@ XML;
         $this->assertSame('微信', $nodes[0]['text']);
         $this->assertSame('id/title', $nodes[0]['id']);
         $this->assertSame([40, 120, 160, 60], $nodes[0]['rect']);
+        $this->assertSame([120, 150], $nodes[0]['tap'], 'the centre, ready to pass to android_tap');
         $this->assertTrue($nodes[0]['clickable']);
 
         $this->assertSame('ImageView', $nodes[1]['type']);

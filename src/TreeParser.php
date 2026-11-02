@@ -17,6 +17,7 @@ final class TreeParser
      * @param array{float, float} $pixelToPoint
      * @return list<array{
      *     type: string,
+     *     tap: array{int, int},
      *     text?: string,
      *     desc?: string,
      *     id?: string,
@@ -84,8 +85,11 @@ final class TreeParser
                 // Shorten class name: e.g. "android.widget.TextView" -> "TextView"
                 $type = $class !== '' ? basename(str_replace('.', '/', $class)) : 'View';
 
+                // Where to tap it, worked out here: a model left to compute x + w / 2 from the rect
+                // guesses instead — and divides the screen by the number of tabs.
                 $item = [
                     'type' => $type,
+                    'tap' => [$rect[0] + intdiv($rect[2], 2), $rect[1] + intdiv($rect[3], 2)],
                     'rect' => $rect,
                 ];
 

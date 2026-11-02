@@ -34,8 +34,7 @@ final class CoordinatesTest extends TestCase
         $space = ScreenCapture::spaceFor(1440, 3200);
 
         $node = TreeParser::parse($xml, $space['pixel_to_point'])[0];
-        [$x, $y, $w, $h] = $node['rect'];
-        $centreY = ($y + $h / 2) * $space['pixel_to_point'][1];
+        $centreY = $node['tap'][1] * $space['pixel_to_point'][1];
 
         $this->assertLessThan(3.0, abs($centreY - 2360), 'the centre of the row, back on the device');
     }

@@ -9,6 +9,13 @@ The native `android_*` tools drive an Android phone or tablet.
 
 **Try adb first.** Tapping the screen is a last resort. What `adb` can do from `bash` stays off the screen: open an app or a page with `adb shell am start`, type or press keys with `adb shell input`, change settings with `adb shell settings`, install or copy files with `adb install` / `adb push` / `adb pull`, read state with `adb shell dumpsys`. Use `android_*` only when the person asks for it, or when the task needs eyes on the screen (an app's own UI with no adb route).
 
+**Inside an app, take its shortcuts before its menus.** Finding your way through an app's screens is slow and goes wrong; these do not depend on how the app looks:
+
+- **Sending text or a file into an app**: share it. `adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT '<text>' -p <package>` opens the app's own "send to" picker; pick the chat there and send. For a file, `-t <mime> --eu android.intent.extra.STREAM <content uri>`.
+- **Opening a page, a person or a channel**: try the app's link, `adb shell am start -a android.intent.action.VIEW -d '<link>'` (`https://…`, or the app's own scheme such as `tg://resolve?domain=<name>`).
+- **Finding something in an app**: use its own search box rather than scrolling through lists or tabs.
+- On the background screen, add `--display <id>` to `am start`; `android_launch_app(screen="background")` gives the id as `display`.
+
 Settle what the person wants delivered and when it is done. Treat an action that returned normally as done and move on; do not spend a separate call looking at the screen to prove each tap, swipe or keystroke worked. When the next step needs to see the screen, set `observe="screenshot"` on the action itself.
 
 ## App knowledge
@@ -32,6 +39,8 @@ android_ready()
 
 ## 2. Tapping by coordinates
 
+**Coordinates come from a node's `tap`, or from where the thing is in the screenshot — never from arithmetic on the screen size.** Do not divide the width by the number of tabs or guess a bar's height: tab bars are not evenly spaced, and a guess that lands on the wrong control can open a dialog or leave the page. If a target is not in the tree and not clearly visible, look again (`android_tree`, or `android_observe`) before tapping.
+
 - Screenshots come from ADB and are scaled down (short side at most 768px), so each one is cheap.
 - **Coordinates**: pass the pixel `(px, py)` you see in the screenshot straight to `android_tap(x=px, y=py)`; the tool converts it back to the device's resolution with the returned `pixel_to_point` ratio.
 - **Look in the same call**: if a tap changes the page and the next step needs to see it, set `observe="screenshot"` so the tap and the new screenshot come back together.
@@ -39,7 +48,7 @@ android_ready()
 ## 3. The view tree
 
 - **Exact targets in native apps**: when you need the exact text in a native app (Settings, WeChat, shopping apps), a list of search results, or the screenshot is not clear enough, call `android_tree(max_nodes=60)`.
-- It returns the useful nodes with `type`, `text`, `desc`, `id` and a `rect: [x, y, w, h]` in the same coordinates as that screen's screenshots (`viewport` says their size); tap the centre to interact, with or without a screenshot in between.
+- It returns the useful nodes with `type`, `text`, `desc`, `id`, `tap: [x, y]` — the point to tap, its centre — and `rect: [x, y, w, h]`, in the same coordinates as that screen's screenshots (`viewport` says their size). To tap a node, pass its `tap` as it is: `android_tap(x=tap[0], y=tap[1])`.
 - It also says whether the tree is enough to work from: `tree_quality` is `adequate`, `partial` (some of the screen is not in it) or `unusable` (an app that draws its own UI: a game, a canvas, a map). When it is not adequate, on macOS the result has `ocr_lines` — the text on the screen the tree lacks, each with a `rect` in the same coordinates — and an `unusable` tree also comes with the screenshot, since icons without text (a game's buttons and tab bar) are only in the picture: take their positions from it, never by dividing the screen. Elsewhere there is no OCR, and a partial or unusable tree comes with the screenshot instead; `unchecked` means the tree could not be checked against the screen.
 
 ## 4. Batches

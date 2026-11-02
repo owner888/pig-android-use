@@ -6,6 +6,12 @@ have entries (`### New Features`, `### Added`, `### Changed`, `### Fixed`). Note
 
 ## Unreleased
 
+### Changed
+
+- The skill sends the model to an app's shortcuts before its menus: share text or a file with `ACTION_SEND` into the app's own picker, open a page with its link (`ACTION_VIEW`), find things with the app's search box — none of which depends on how the app looks this version. `android_launch_app(screen="background")` returns the background screen's `display` id for `am start --display`.
+
+- `android_tree` gives every node a `tap: [x, y]`, its centre, to pass to `android_tap` as it is. With only `rect: [x, y, w, h]` a model skipped the arithmetic and guessed — on Telegram it divided the tab bar into equal parts, opened the attachment dialog and backed out of the chat it wanted. The skill now says coordinates come from `tap` or the screenshot, never from dividing the screen.
+
 ### Fixed
 
 - Fixed tree rects and screenshots disagreeing on a game: the screen's size was taken from the extent of the tree's nodes, and a game's window can stop short of the bottom, so the tree said 747×1568 where the screenshot of the same screen was 706×1568 and taps went off. The helper now sends the display's own logical size (rotation included) with the tree. Protocol version 6.
