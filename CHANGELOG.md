@@ -4,6 +4,14 @@ What changed, newest first, in pig's format: `## [x.y.z] - YYYY-MM-DD`, then onl
 have entries (`### New Features`, `### Added`, `### Changed`, `### Fixed`). Notes under
 `## Unreleased` belong to no version yet; the version itself lives in the git tag.
 
+## Unreleased
+
+### Changed
+
+- Tool results are one line of JSON, with text as itself rather than `\uXXXX`: a 34-node tree with Chinese in it went from 12.7 KB on 556 lines to 4.6 KB, on every read.
+- `android_tree` says when it left nodes out: past `max_nodes` it adds `truncated` with how many useful nodes the screen has, instead of a list the model took for the whole screen.
+- An empty background screen says why — nothing opened on it yet, or the one before closed after 15 minutes unused (or the helper restarted) and took the app with it — and to open the app again, instead of the helper's "nothing has been drawn".
+
 ## [0.2.0] - 2026-11-02
 
 ### New Features

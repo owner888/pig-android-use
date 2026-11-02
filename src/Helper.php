@@ -45,6 +45,15 @@ final class Helper
     /** @var array<string, int> the background screen's display id, by device */
     private array $screens = [];
 
+    /**
+     * Devices whose background screen went away — the helper exited after 15 minutes unused, or
+     * was restarted — taking the app on it along. The next screen there is a new, empty one, and
+     * the model is told so when it looks at it before opening an app again.
+     *
+     * @var array<string, true>
+     */
+    private array $replaced = [];
+
     public function __construct(private readonly AdbClient $adb)
     {
     }
@@ -65,6 +74,11 @@ final class Helper
 
         if (isset($this->screens[$key]) && in_array($this->screens[$key], $displays, true)) {
             return $this->awake($serial, $this->screens[$key]);
+        }
+
+        if (isset($this->screens[$key])) {
+            $this->replaced[$key] = true;
+            unset($this->screens[$key]);
         }
 
         if ($displays !== []) {
@@ -146,12 +160,24 @@ final class Helper
      */
     public function screenshot(?string $serial, int $display): array
     {
-        $reply = $this->request($serial, 'screenshot', [
-            'id' => $display,
-            'max_short' => ScreenCapture::MAX_SHORT_SIDE,
-            'max_long' => ScreenCapture::MAX_LONG_SIDE,
-            'quality' => ScreenCapture::JPEG_QUALITY,
-        ]);
+        $key = $this->key($serial);
+
+        try {
+            $reply = $this->request($serial, 'screenshot', [
+                'id' => $display,
+                'max_short' => ScreenCapture::MAX_SHORT_SIDE,
+                'max_long' => ScreenCapture::MAX_LONG_SIDE,
+                'quality' => ScreenCapture::JPEG_QUALITY,
+            ]);
+        } catch (RuntimeException $e) {
+            if (!str_contains($e->getMessage(), 'nothing has been drawn')) {
+                throw $e;
+            }
+
+            throw new RuntimeException(self::emptyScreen(isset($this->replaced[$key])), 0, $e);
+        }
+
+        unset($this->replaced[$key]);
 
         $data = base64_decode((string) ($reply['jpeg'] ?? ''), true);
         if ($data === false || $data === '') {
@@ -198,6 +224,14 @@ final class Helper
         return ['xml' => $xml, 'width' => (int) $reply['width'], 'height' => (int) $reply['height']];
     }
 
+    /** What to tell the model about a background screen nothing has been opened on. */
+    public static function emptyScreen(bool $replaced): string
+    {
+        return 'The background screen is empty: no app has been opened on it'
+            . ($replaced ? ' since it was made again — the one before closed, with the app on it, after 15 minutes without use (or the helper restarted)' : ' yet')
+            . '. Open the app with android_launch_app(screen="background"), then look again.';
+    }
+
     /**
      * One request to the helper, started first if it is not running.
      *
@@ -240,6 +274,9 @@ final class Helper
                 }
             }
 
+            if (isset($this->screens[$key])) {
+                $this->replaced[$key] = true;
+            }
             unset($this->sessions[$key], $this->screens[$key]);
         }
 

@@ -24,9 +24,13 @@ final class TreeParser
      *     clickable?: bool,
      *     rect: array{int, int, int, int}
      * }>
+     *
+     * @param int|null $total set to how many useful nodes the tree has, those past $maxNodes included
      */
-    public static function parse(string $xmlContent, array $pixelToPoint = [1.0, 1.0], int $maxNodes = 60): array
+    public static function parse(string $xmlContent, array $pixelToPoint = [1.0, 1.0], int $maxNodes = 60, ?int &$total = null): array
     {
+        $total = 0;
+
         if (trim($xmlContent) === '') {
             return [];
         }
@@ -46,13 +50,16 @@ final class TreeParser
         $scaleX = $pixelToPoint[0] > 0 ? (1.0 / $pixelToPoint[0]) : 1.0;
         $scaleY = $pixelToPoint[1] > 0 ? (1.0 / $pixelToPoint[1]) : 1.0;
 
-        self::walk($xml, $nodes, $scaleX, $scaleY, $maxNodes);
+        self::walk($xml, $nodes, $scaleX, $scaleY, $maxNodes, $total);
 
         return $nodes;
     }
 
     /**
      * Recursively walk XML nodes and extract meaningful interactive or textual elements.
+     *
+     * Every useful node is counted in $total; only the first $maxNodes are kept. The walk goes on
+     * past the limit to count the rest, so the caller can say how many were left out.
      *
      * @param list<array<string, mixed>> $nodes
      */
@@ -61,11 +68,9 @@ final class TreeParser
         array &$nodes,
         float $scaleX,
         float $scaleY,
-        int $maxNodes
+        int $maxNodes,
+        int &$total
     ): void {
-        if (count($nodes) >= $maxNodes) {
-            return;
-        }
 
         $attrs = $element->attributes();
         if ($attrs !== null && isset($attrs['bounds'])) {
@@ -108,15 +113,15 @@ final class TreeParser
                     $item['clickable'] = true;
                 }
 
-                $nodes[] = $item;
+                $total++;
+                if (count($nodes) < $maxNodes) {
+                    $nodes[] = $item;
+                }
             }
         }
 
         foreach ($element->children() as $child) {
-            self::walk($child, $nodes, $scaleX, $scaleY, $maxNodes);
-            if (count($nodes) >= $maxNodes) {
-                break;
-            }
+            self::walk($child, $nodes, $scaleX, $scaleY, $maxNodes, $total);
         }
     }
 

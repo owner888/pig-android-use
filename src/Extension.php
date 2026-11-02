@@ -18,6 +18,15 @@ use Pig\CodingAgent\Extensions\ExtensionApi;
  */
 final class Extension
 {
+    /**
+     * A tool result's JSON, on one line: indentation costs the model tokens on every call (a
+     * 34-node tree was 365 lines), and text stays itself rather than `\uXXXX`.
+     */
+    private static function json(mixed $value): string
+    {
+        return (string) json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
     public static function register(ExtensionApi $pi): void
     {
         $adb = new AdbClient();
@@ -222,7 +231,7 @@ final class Extension
                     'screen_on' => $available ? $adb->isScreenOn($serial) : null,
                 ];
 
-                return new AgentToolResult([new TextContent((string) json_encode($info, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES))]);
+                return new AgentToolResult([new TextContent(self::json($info))]);
             }
         ));
 
@@ -270,7 +279,7 @@ final class Extension
                     'pixel_to_point' => $obs['pixel_to_point'],
                 ];
 
-                $contents[] = new TextContent((string) json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                $contents[] = new TextContent(self::json($meta));
 
                 if ($wantScreenshot) {
                     $contents[] = new ImageContent(
@@ -318,7 +327,7 @@ final class Extension
                     'image_path' => $obs['image']['path'],
                 ];
 
-                $contents[] = new TextContent((string) json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                $contents[] = new TextContent(self::json($meta));
 
                 if ($mode === 'screenshot' || $mode === 'both') {
                     $contents[] = new ImageContent(
@@ -375,10 +384,10 @@ final class Extension
                         'viewport' => ['width' => $obs['viewport_width'], 'height' => $obs['viewport_height']],
                         'pixel_to_point' => $obs['pixel_to_point'],
                     ];
-                    $contents[] = new TextContent((string) json_encode($res, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                    $contents[] = new TextContent(self::json($res));
                     $contents[] = new ImageContent(base64_encode($obs['image']['data']), $obs['image']['mimeType']);
                 } else {
-                    $contents[] = new TextContent((string) json_encode($res, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                    $contents[] = new TextContent(self::json($res));
                 }
 
                 return new AgentToolResult($contents);
@@ -453,10 +462,10 @@ final class Extension
                         'viewport' => ['width' => $obs['viewport_width'], 'height' => $obs['viewport_height']],
                         'pixel_to_point' => $obs['pixel_to_point'],
                     ];
-                    $contents[] = new TextContent((string) json_encode($res, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                    $contents[] = new TextContent(self::json($res));
                     $contents[] = new ImageContent(base64_encode($obs['image']['data']), $obs['image']['mimeType']);
                 } else {
-                    $contents[] = new TextContent((string) json_encode($res, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                    $contents[] = new TextContent(self::json($res));
                 }
 
                 return new AgentToolResult($contents);
@@ -665,15 +674,19 @@ final class Extension
                 $scales[$display ?? Helper::MAIN_DISPLAY] = $space['pixel_to_point'];
                 $result['viewport'] = $space['viewport'];
 
-                $nodes = TreeParser::parse($rawXml, $scaleOf($display, $serial), $maxNodes);
+                $nodes = TreeParser::parse($rawXml, $scaleOf($display, $serial), $maxNodes, $available);
                 $result['tree_quality'] = $check['quality'] ?? 'unchecked';
                 if ($check['reason'] !== null) {
                     $result['tree_quality_reason'] = $check['reason'];
                 }
                 $result['total_nodes'] = count($nodes);
+                // Cut at max_nodes, said so: a model that is not told takes the list for the screen.
+                if ($available > count($nodes)) {
+                    $result['truncated'] = "{$available} useful nodes on screen, the first " . count($nodes) . ' shown: call again with a larger max_nodes (up to 200) if a target is missing';
+                }
                 $result['nodes'] = $nodes;
 
-                $contents = [new TextContent((string) json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))];
+                $contents = [new TextContent(self::json($result))];
                 if ($image !== null) {
                     $contents[] = new ImageContent(base64_encode($image['data']), $image['mimeType']);
                 }
@@ -733,10 +746,10 @@ final class Extension
                         'viewport' => ['width' => $obs['viewport_width'], 'height' => $obs['viewport_height']],
                         'pixel_to_point' => $obs['pixel_to_point'],
                     ];
-                    $contents[] = new TextContent((string) json_encode($res, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                    $contents[] = new TextContent(self::json($res));
                     $contents[] = new ImageContent(base64_encode($obs['image']['data']), $obs['image']['mimeType']);
                 } else {
-                    $contents[] = new TextContent((string) json_encode($res, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                    $contents[] = new TextContent(self::json($res));
                 }
 
                 return new AgentToolResult($contents);
