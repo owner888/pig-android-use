@@ -23,7 +23,7 @@ final class Helper
     public const string REMOTE_DEX = '/data/local/tmp/pig-android-helper.dex';
     public const string MAIN_CLASS = 'pig.androiduse.helper.Main';
     /** Main.VERSION in the helper this package ships. */
-    public const int VERSION = 6;
+    public const int VERSION = 7;
     /** Display.DEFAULT_DISPLAY, the phone's own screen. */
     public const int MAIN_DISPLAY = 0;
     /** Android 12: the per-display user-activity call and the display flags the helper relies on. */
@@ -222,6 +222,22 @@ final class Helper
         }
 
         return ['xml' => $xml, 'width' => (int) $reply['width'], 'height' => (int) $reply['height']];
+    }
+
+    /**
+     * Puts text into the focused input field of a screen by setting the field's text: any language,
+     * no keyboard, no clipboard. `typed` false when no field there has the focus (or the app draws
+     * its own, as a game does); `verified` whether the field, read back, holds the text (null for a
+     * password field, which reads back as dots).
+     *
+     * @return array{typed: bool, verified?: bool|null, field?: string, text?: string, reason?: string}
+     */
+    public function type(?string $serial, int $display, string $text): array
+    {
+        $reply = $this->request($serial, 'type', ['id' => $display, 'text' => $text], 10.0);
+        unset($reply['ok']);
+
+        return $reply;
     }
 
     /** What to tell the model about a background screen nothing has been opened on. */

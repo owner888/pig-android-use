@@ -131,34 +131,61 @@ final class InputManager
     }
 
     /**
-     * Enter text with support for full Unicode, CJK characters and multiline text.
+     * Types text into the focused field.
+     *
+     * Plain ASCII words go as key events (`input text`), as a keyboard would send them. Anything
+     * else — Chinese, emoji, spaces, several lines — the helper sets into the field directly and
+     * reads back: key events carry ASCII only, and pasting reads the clipboard, which Android 10
+     * and later keeps from an app without the focus (an app on the background screen, always).
+     * Only where the helper finds no field (a game draws its own) or cannot run does it fall back
+     * to the clipboard, and then the result says it could not check.
+     *
+     * @return array{method: string, verified: bool|null, field?: string, text?: string, note?: string}
      */
-    public static function typeText(AdbClient $adb, string $text, ?string $serial = null, ?int $display = null): void
+    public static function typeText(AdbClient $adb, string $text, ?string $serial = null, ?int $display = null, ?Helper $helper = null): array
     {
         if ($text === '') {
-            return;
+            return ['method' => 'none', 'verified' => true];
         }
 
-        // 1. If it's single-line simple ASCII without spaces or shell-sensitive symbols
         if (preg_match('/^[a-zA-Z0-9._\-]+$/', $text) === 1) {
             $adb->executeShell(self::input($display) . " text '" . addcslashes($text, "'\\") . "'", $serial);
-            return;
+
+            return ['method' => 'keys', 'verified' => null];
         }
 
-        // 2. Unicode / CJK / multi-word / multiline: use Android native clipboard and paste
-        // Android 10+ supports `cmd clipboard set text <content>`
-        $escaped = escapeshellarg($text);
-        $res = $adb->executeShell("cmd clipboard set text {$escaped}", $serial);
+        $why = 'the helper is not available';
+        if ($helper !== null) {
+            try {
+                $reply = $helper->type($serial, $display ?? Helper::MAIN_DISPLAY, $text);
+                if ($reply['typed'] ?? false) {
+                    $result = ['method' => 'set_text', 'verified' => $reply['verified'] ?? null];
+                    foreach (['field', 'text'] as $key) {
+                        if (isset($reply[$key])) {
+                            $result[$key] = $reply[$key];
+                        }
+                    }
+                    if ($result['verified'] === false) {
+                        $result['note'] = 'The field took the text but does not show it: the app may have changed or limited it. Look before going on.';
+                    }
 
-        if ($res['exit'] === 0) {
-            // KEYCODE_PASTE = 279
-            $adb->executeShell(self::input($display) . ' keyevent 279', $serial);
-            return;
+                    return $result;
+                }
+                $why = (string) ($reply['reason'] ?? 'the field did not take it');
+            } catch (\Throwable $e) {
+                $why = $e->getMessage();
+            }
         }
 
-        // 3. Fallback: split word by word or encode spaces as %s for standard input text
-        $sanitized = str_replace(' ', '%s', addcslashes($text, "'\\\"`$"));
-        $adb->executeShell(self::input($display) . " text '{$sanitized}'", $serial);
+        // Last resort: the clipboard, and a paste.
+        $adb->executeShell('cmd clipboard set text ' . escapeshellarg($text), $serial);
+        $adb->executeShell(self::input($display) . ' keyevent 279', $serial);
+
+        return [
+            'method' => 'paste',
+            'verified' => false,
+            'note' => "Pasted, unchecked ({$why}). An app on the background screen cannot read the clipboard, so the paste may have put nothing there: tap the field and look with android_tree or a screenshot.",
+        ];
     }
 
     /**
@@ -195,7 +222,8 @@ final class InputManager
         array $steps,
         array $pixelToPoint = [1.0, 1.0],
         ?string $serial = null,
-        ?int $display = null
+        ?int $display = null,
+        ?Helper $helper = null
     ): array {
         $results = [];
         $completed = 0;
@@ -235,8 +263,8 @@ final class InputManager
 
                 case 'type_text':
                     $text = (string) ($args['text'] ?? '');
-                    self::typeText($adb, $text, $serial, $display);
-                    $results[] = ['op' => 'type_text', 'ok' => true, 'length' => mb_strlen($text)];
+                    $typed = self::typeText($adb, $text, $serial, $display, $helper);
+                    $results[] = ['op' => 'type_text', 'ok' => $typed['verified'] !== false, 'length' => mb_strlen($text)] + $typed;
                     break;
 
                 case 'press_button':

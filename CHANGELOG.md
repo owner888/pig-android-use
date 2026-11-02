@@ -10,6 +10,7 @@ have entries (`### New Features`, `### Added`, `### Changed`, `### Fixed`). Note
 
 - Tool results are one line of JSON, with text as itself rather than `\uXXXX`: a 34-node tree with Chinese in it went from 12.7 KB on 556 lines to 4.6 KB, on every read.
 - `android_tree` says when it left nodes out: past `max_nodes` it adds `truncated` with how many useful nodes the screen has, instead of a list the model took for the whole screen.
+- `android_type_text` sets the text into the focused field through the helper (UiAutomation, `ACTION_SET_TEXT`) and reads it back, instead of the clipboard and a paste: Android 10 and later keep the clipboard from an app without the focus, so on the background screen the paste put nothing in — and the tool said it typed. The result now has `method` and `verified`. Plain ASCII words still go as key events; the clipboard is left for fields the helper cannot find (a game's own), reported as unchecked. Helper protocol 7.
 - An empty background screen says why — nothing opened on it yet, or the one before closed after 15 minutes unused (or the helper restarted) and took the app with it — and to open the app again, instead of the helper's "nothing has been drawn".
 
 ## [0.2.0] - 2026-11-02

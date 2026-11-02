@@ -478,7 +478,7 @@ final class Extension
         $pi->registerTool(new CustomTool(
             name: 'android_type_text',
             label: 'Android Type Text',
-            description: 'Input text on the focused Android input field, with full support for Chinese, Unicode, and multiline text.',
+            description: 'Type text into the input field that has the focus (tap it first) — Chinese, emoji and several lines too. Says how it went in (`method`) and whether the field, read back, holds the text (`verified`): false means look before going on.',
             parameters: [
                 'type' => 'object',
                 'properties' => [
@@ -488,17 +488,17 @@ final class Extension
                 ],
                 'required' => ['text'],
             ],
-            execute: static function (string $id, array $params) use ($adb, $screenOf): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $helper, $screenOf): AgentToolResult {
                 $text = (string) ($params['text'] ?? '');
                 $serial = $params['serial'] ?? null;
                 $display = $screenOf($params, $serial);
 
-                InputManager::typeText($adb, $text, $serial, $display);
+                $typed = InputManager::typeText($adb, $text, $serial, $display, $helper);
 
-                return new AgentToolResult([new TextContent((string) json_encode([
+                return new AgentToolResult([new TextContent(self::json([
                     'action_executed' => true,
                     'typed_length' => mb_strlen($text),
-                ]))]);
+                ] + $typed))]);
             }
         ));
 
@@ -720,7 +720,7 @@ final class Extension
                 ],
                 'required' => ['steps'],
             ],
-            execute: static function (string $id, array $params) use ($adb, $observeScreen, $scaleOf, $screenOf): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $helper, $observeScreen, $scaleOf, $screenOf): AgentToolResult {
                 $steps = (array) ($params['steps'] ?? []);
                 if (count($steps) > 15) {
                     throw new \RuntimeException('Batch steps exceed maximum budget of 15 operations.');
@@ -730,7 +730,7 @@ final class Extension
                 $display = $screenOf($params, $serial);
                 $observe = (string) ($params['observe'] ?? 'screenshot');
 
-                $batchRes = InputManager::batch($adb, $steps, $scaleOf($display, $serial), $serial, $display);
+                $batchRes = InputManager::batch($adb, $steps, $scaleOf($display, $serial), $serial, $display, $helper);
 
                 $contents = [];
                 $res = [

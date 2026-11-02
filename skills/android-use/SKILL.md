@@ -88,7 +88,8 @@ android_ready()
 ## 6. Typing text
 
 - Tap the field first, then `android_type_text(text="what to type")`.
-- Chinese, English, symbols and multiple lines all work; the text goes through the Android clipboard, so no extra keyboard app is needed.
+- Chinese, English, emoji and multiple lines all work, on either screen. The result says whether the field, read back, holds the text: `verified: false` (or `method: "paste"`) means look with `android_tree` before going on — never assume it went in.
+- Do not work around typing with intent extras or the clipboard yourself: if typing fails, say so.
 
 ## 7. Buttons and launching apps
 

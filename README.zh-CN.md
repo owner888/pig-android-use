@@ -23,7 +23,7 @@ pig install git:github.com/owner888/pig-android-use
 | `android_tree` | 精简的控件树节点，由手机端小助手读取（见下文；需 Android 12+）（`type`、`text`、`desc`、`id`、`tap`——可直接点击的坐标——和 `rect`）——原生 App 里的精确目标。会说明控件树够不够用（`tree_quality`）；不够用时补上树里没有的屏幕文字（OCR，macOS）或截图 |
 | `android_tap` | 按截图坐标点击；自动换算成设备像素，带 ±2 像素抖动 |
 | `android_swipe` | 按方向滑动，或在两点之间拖动 |
-| `android_type_text` | 往获得焦点的输入框里打字——中文、符号、多行都行（走 Android 剪贴板，不用装输入法 App） |
+| `android_type_text` | 往获得焦点的输入框里打字——中文、表情、多行都行，主屏副屏都行（小助手直接把字写进输入框再读回来核对，不用装输入法 App） |
 | `android_press_button` | 返回、主屏、最近任务、电源、音量、回车 |
 | `android_launch_app` | 按包名启动 App |
 | `android_batch` | 一次调用最多 15 步，步与步之间停 150–350 毫秒 |

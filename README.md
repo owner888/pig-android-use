@@ -23,7 +23,7 @@ Before this package existed, Android use was bundled with pig. `pig update` remo
 | `android_tree` | The view hierarchy as compact nodes, read by the phone helper (below; Android 12+) (`type`, `text`, `desc`, `id`, `tap` — the point to tap — and `rect`) — exact targets in native apps. Says whether the tree is enough (`tree_quality`); when it is not, adds the screen text it lacks (OCR, macOS) or the screenshot |
 | `android_tap` | Tap at screenshot coordinates; converted to device pixels, ±2 px jitter |
 | `android_swipe` | Swipe by direction, or drag between two points |
-| `android_type_text` | Type into the focused field — Chinese, symbols, several lines (through the Android clipboard, no keyboard app needed) |
+| `android_type_text` | Type into the focused field — Chinese, emoji, several lines, on either screen (the helper sets the field's text and reads it back; no keyboard app needed) |
 | `android_press_button` | back, home, recent apps, power, volume, enter |
 | `android_launch_app` | Launch an app by package name |
 | `android_batch` | Up to 15 steps in one call, with 150–350 ms pauses between them |

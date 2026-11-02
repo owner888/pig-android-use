@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.UiAutomation;
 import android.content.Context;
 import android.graphics.Rect;
+import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.util.SparseArray;
@@ -13,6 +14,8 @@ import android.view.accessibility.AccessibilityWindowInfo;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.List;
+
+import org.json.JSONObject;
 
 /**
  * The view tree of one display, in the XML `uiautomator dump` writes — so pig reads it with the
@@ -32,7 +35,12 @@ final class ViewTree {
     private ViewTree() {
     }
 
-    static String dump(Context context, int displayId) throws Exception {
+    /** Work done while UiAutomation is connected, on the windows of one display (null: none). */
+    private interface Work<T> {
+        T run(List<AccessibilityWindowInfo> windows) throws Exception;
+    }
+
+    private static <T> T with(Context context, int displayId, Work<T> work) throws Exception {
         HandlerThread thread = new HandlerThread("pig-uiautomation");
         thread.start();
         UiAutomation automation = create(thread.getLooper(), context);
@@ -53,8 +61,15 @@ final class ViewTree {
             }
 
             SparseArray<List<AccessibilityWindowInfo>> all = automation.getWindowsOnAllDisplays();
-            List<AccessibilityWindowInfo> windows = all.get(displayId);
+            return work.run(all.get(displayId));
+        } finally {
+            disconnect(automation);
+            thread.quitSafely();
+        }
+    }
 
+    static String dump(Context context, int displayId) throws Exception {
+        return with(context, displayId, windows -> {
             StringBuilder xml = new StringBuilder(64 * 1024);
             xml.append("<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy rotation=\"0\">");
             int[] count = {0};
@@ -71,10 +86,75 @@ final class ViewTree {
 
             xml.append("</hierarchy>");
             return xml.toString();
-        } finally {
-            disconnect(automation);
-            thread.quitSafely();
-        }
+        });
+    }
+
+    /**
+     * Puts text into the input field that has focus on a display, at its cursor (over its
+     * selection), by setting the field's text — no keyboard, no clipboard. `input text` sends key
+     * events, which carry ASCII only; pasting reads the clipboard, which Android (10 and later)
+     * keeps from an app that does not have the focus, and an app on a background screen does not.
+     * Then the field is read back, so the reply says whether the text is really there.
+     *
+     * A field drawn by the app itself (a game, a Unity or Flutter canvas) is no node, so there is
+     * nothing to set: `typed` false, and pig falls back to the clipboard.
+     */
+    static JSONObject type(Context context, int displayId, String text) throws Exception {
+        return with(context, displayId, windows -> {
+            JSONObject reply = new JSONObject();
+            AccessibilityNodeInfo field = null;
+
+            if (windows != null) {
+                for (AccessibilityWindowInfo window : windows) {
+                    AccessibilityNodeInfo root = window.getRoot();
+                    AccessibilityNodeInfo focused = root == null ? null : root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+                    if (focused != null && focused.isEditable()) {
+                        field = focused;
+                        break;
+                    }
+                }
+            }
+
+            if (field == null) {
+                return reply.put("typed", false).put("reason", "no input field has the focus on this screen");
+            }
+
+            CharSequence shown = field.getText();
+            String before = shown == null || field.isShowingHintText() ? "" : shown.toString();
+            int start = field.getTextSelectionStart();
+            int end = field.getTextSelectionEnd();
+            if (start < 0 || end < 0 || start > before.length() || end > before.length()) {
+                start = before.length();
+                end = before.length();
+            }
+            int from = Math.min(start, end);
+            int to = Math.max(start, end);
+
+            Bundle args = new Bundle();
+            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, before.substring(0, from) + text + before.substring(to));
+            if (!field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {
+                return reply.put("typed", false).put("reason", "the input field did not take the text");
+            }
+
+            // The cursor after what was typed, as a keyboard leaves it: the next text goes on from there.
+            int caret = from + text.length();
+            Bundle selection = new Bundle();
+            selection.putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, caret);
+            selection.putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, caret);
+            field.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, selection);
+
+            reply.put("typed", true);
+            String id = field.getViewIdResourceName();
+            reply.put("field", id != null ? id : String.valueOf(field.getClassName()));
+
+            if (field.isPassword()) {
+                // Read back as dots: nothing to compare.
+                return reply.put("verified", JSONObject.NULL);
+            }
+            field.refresh();
+            CharSequence now = field.getText();
+            return reply.put("verified", now != null && now.toString().contains(text)).put("text", now == null ? "" : now.toString());
+        });
     }
 
     private static void node(AccessibilityNodeInfo n, int index, int depth, StringBuilder xml, int[] count) {
