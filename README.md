@@ -40,6 +40,10 @@ Every tool takes an optional `serial` for a machine with several devices, and th
 
 With `pig web`, `/api/android/stream` is a live view of the phone's screen.
 
+### Notes the model keeps
+
+The skill has the model keep notes on each app it works in, at `~/.pig/agent/android-use/notes/<package>.md`: read before working in the app, and after each run added to or corrected with what it did and then saw — dated, with the app's version, positions in words rather than pixels, the path that worked for a task. They win over `APP.md` where the two disagree, since they were seen on this phone. When a task fails or a game is lost, the model writes down what decided it and what to try next time; a lesson stays "to try" until it has helped twice, is dropped once it has not, and choices (a deck against an opponent) are made by the win/loss tally rather than the last game. They live outside the package, so `pig update` leaves them alone; open them to see what it has learned, edit or delete a line that is wrong.
+
 ### Skill
 
 The `android-use` skill tells the model when to use these tools: **adb from bash comes first** (`am start`, `input`, `settings`, `install`/`push`/`pull`), and the screen only when the person asks for it or adb cannot do the job. It also covers coordinates, the view tree, batches, and when to stop and hand the phone back (passwords, payment, face or fingerprint checks).

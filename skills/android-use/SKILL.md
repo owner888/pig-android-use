@@ -27,6 +27,29 @@ Before working inside an app, look for its notes in `apps/` next to this file: o
 - `pace: careful` marks an app that watches for automation: fewer screens per minute, `android_batch` rather than a burst of single taps, no rapid repeats, and stop as soon as the app says you are going too fast or asks for verification.
 - An app with no folder here has no notes; use the view tree and the screen as usual.
 
+## What you learn about an app
+
+Keep your own notes on the apps you work in, one file per app: `~/.pig/agent/android-use/notes/<package>.md` (pig's agent directory — `$PIG_CODING_AGENT_DIR` when that is set). They are yours and the person's, outside this package, so an update never touches them.
+
+**Before** working in an app, read its notes file if there is one, after its `APP.md`. Where they disagree, the notes win: they were seen on this phone, at this version.
+
+**After** the task — done or not — add what this run showed that the notes lack, and correct what it showed to be wrong:
+
+- Only what you did and then saw on the screen: "tapping the pack on the home screen opens 選擇擴充包, a list of packs", "a 公告 dialog covers the home screen after a cold start; its ✕ is top right". Not guesses, not what you expected to see.
+- Positions in words, never pixels: "4th icon from the left in the tab bar", "top right of the dialog", "the second row under the search box". Pixels hold for one screen size; words hold for all.
+- The path that worked, step by step, for a task worth doing again ("open a free pack: …"), and what went wrong on the way and how it was got past.
+- Each entry starts with the date and the app's version (`adb shell dumpsys package <package> | grep versionName`). When an entry turns out wrong, change that entry — do not add a second one that contradicts it.
+- Keep the file short: one line per fact, a heading per screen or task. Create the directory if it is missing.
+
+**When a task failed or a game was lost, learn from it** — under a `## Lessons` heading in the same file:
+
+- What happened: the result (lost, at which step it failed), and for a game the opponent, your deck and how many turns.
+- What decided it: the one decision or step that cost the most, as seen on the screen ("attacked with 30 damage while the opponent's 90-HP ex was one energy from its 120 attack"), not a general feeling.
+- What to do next time, marked **to try**. A lesson from one game is a guess: it is not a rule yet.
+- When you try it, add the outcome to that entry. Two outcomes where it helped make it a **rule**; one where it did not, and it goes.
+- Keep a tally for what you can choose (a deck against an opponent, one way of doing a task against another): `deck A vs B: 3W 2L`. Choose by the tally, not by the last game.
+- Before the next task or game in that app, read the rules and the to-try entries, and act on them.
+
 ## 1. Ready check
 
 Call this once before anything else:
