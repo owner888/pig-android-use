@@ -1,0 +1,28 @@
+{
+    "name": "owner888/pig-android-use",
+    "description": "Android use for the pig coding agent: drive a real or emulated Android phone over ADB in pure PHP — taps, swipes, Chinese text input, the view tree, screenshots — with per-app knowledge for common apps.",
+    "type": "library",
+    "license": "Apache-2.0",
+    "keywords": ["pig", "pig-package", "android", "adb", "phone-automation", "android-use", "coding-agent"],
+    "authors": [
+        {"name": "the developer"}
+    ],
+    "require": {
+        "php": ">=8.3",
+        "ext-mbstring": "*"
+    },
+    "suggest": {
+        "ext-gd": "Downscales screenshots to JPEG where macOS sips is not available"
+    },
+    "autoload": {
+        "psr-4": {
+            "PigAndroidUse\\": "src/"
+        }
+    },
+    "extra": {
+        "pig": {
+            "extensions": ["./extensions/pig-android-use.php"],
+            "skills": ["./skills"]
+        }
+    }
+}

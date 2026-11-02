@@ -1,0 +1,74 @@
+# pig-android-use
+
+Android use for the pig coding agent: drive a real or emulated Android phone over ADB, in pure PHP — taps, swipes, Chinese text input, the view tree and screenshots — with notes on how 23 common apps are laid out.
+
+[中文](README.zh-CN.md)
+
+## Installation
+
+```bash
+pig install git:github.com/owner888/pig-android-use
+```
+
+You also need `adb` (Android platform-tools) on the machine pig runs on, and a phone with USB debugging on — or wireless debugging, then `/android connect <ip:port>`. Nothing else: the package has no Composer dependencies.
+
+Before this package existed, Android use was bundled with pig. `pig update` removes the old bundled copy from `~/.pig/agent/extensions/` and prints the line above; settings that name `pig-android-use` in `disabledExtensions` still reach it.
+
+## Tools
+
+| Tool | What it does |
+| --- | --- |
+| `android_ready` | Checks for a device, wakes the screen, returns the foreground app, the viewport and a screenshot. Call it first. |
+| `android_observe` | A screenshot and/or the foreground app |
+| `android_tree` | The view hierarchy as compact nodes (`type`, `text`, `desc`, `id`, `rect`) — exact targets in native apps |
+| `android_tap` | Tap at screenshot coordinates; converted to device pixels, ±2 px jitter |
+| `android_swipe` | Swipe by direction, or drag between two points |
+| `android_type_text` | Type into the focused field — Chinese, symbols, several lines (through the Android clipboard, no keyboard app needed) |
+| `android_press_button` | back, home, recent apps, power, volume, enter |
+| `android_launch_app` | Launch an app by package name |
+| `android_batch` | Up to 15 steps in one call, with 150–350 ms pauses between them |
+| `android_connect` | Connect to a device over Wi-Fi |
+| `android_doctor` | adb, ffmpeg, devices, screen size, foreground app, screen state |
+
+Every tool takes an optional `serial` for a machine with several devices. An action can return a screenshot of its result in the same call (`observe: "screenshot"`), so there is no separate call just to look.
+
+### Command
+
+`/android` shows the devices; `/android connect <ip:port>`, `/android disconnect`, `/android screenshot`.
+
+### Web UI
+
+With `pig web`, `/api/android/stream` is a live view of the phone's screen.
+
+### Skill
+
+The `android-use` skill tells the model when to use these tools: **adb from bash comes first** (`am start`, `input`, `settings`, `install`/`push`/`pull`), and the screen only when the person asks for it or adb cannot do the job. It also covers coordinates, the view tree, batches, and when to stop and hand the phone back (passwords, payment, face or fingerprint checks).
+
+### App knowledge
+
+`skills/android-use/apps/` holds one `APP.md` per app — Android Settings, Baijiahao, Bilibili, BOSS Zhipin, Chrome, Dedao, Douyin, Feishu, Gmail, Jike, Kuaishou, LinkedIn, QQ Mail, Telegram, Toutiao, Uber, Uber Eats, WeChat, Weibo, WhatsApp, Xianyu, Xiaohongshu, Zhihu. Each says what the app's screens are, where its features live and what is easy to get wrong; the skill has the model read the matching one before it works in that app. Apps marked `pace: careful` watch for automation, and the model slows down in them.
+
+These notes come from [Mika](https://github.com/wangzan101/Mika) (Apache-2.0), unmodified and in Chinese, as Mika wrote them — see [NOTICE](NOTICE).
+
+## Configuration
+
+| Variable | Meaning |
+| --- | --- |
+| `ADB_PATH` | The `adb` binary, when it is not on `PATH` or in the Android SDK's usual places |
+| `FFMPEG_PATH` | The `ffmpeg` binary. With ffmpeg, screenshots come from the phone's hardware H.264 encoder (about 0.7 s instead of 2.3 s on a 2K screen); without it, from `screencap` |
+
+Screenshots are scaled down (short side at most 768 px) and kept in the extension's artifacts directory; an incognito session's go with it. On macOS they are converted with `sips`, elsewhere with PHP's GD; with neither, the full-size PNG is sent as it is.
+
+## Development
+
+The tests run against a pig checkout:
+
+```bash
+PIG_DIR=~/path/to/pig ~/path/to/pig/vendor/bin/phpunit -c phpunit.xml
+```
+
+`PIG_DIR` defaults to a `pig` directory next to this package.
+
+## License
+
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
