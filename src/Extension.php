@@ -639,8 +639,11 @@ final class Extension
                         $check = TreeQuality::withText($check, $missing);
                         $result['ocr_lines'] = $missing;
 
-                        // OCR found nothing to go on: only the picture is left.
-                        if ($check['quality'] === TreeQuality::UNUSABLE && $lines === []) {
+                        // An unusable tree has next to nothing in it (a game, a canvas): OCR gives its
+                        // words, but its icons — a game's tab bar — are only in the picture, and
+                        // without it the model guesses where they are. A partial tree has most of
+                        // the screen already; its missing text is enough.
+                        if ($check['quality'] === TreeQuality::UNUSABLE) {
                             $image = $obs['image'];
                         }
                     } elseif ($check['quality'] !== null) {

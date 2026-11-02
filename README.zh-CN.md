@@ -75,7 +75,7 @@ ANDROID_HOME=~/Library/Android/sdk helper/build.sh
 
 ### 自绘界面的 App
 
-游戏、画布、地图这类 App 的控件树里几乎没有带名字的节点，所以 `android_tree` 返回之前会先判断控件树够不够用：带名字的元素够不够多、控件大多有没有标签、有没有大块区域一个字都没有。拿不准时就读屏幕上的文字，把控件树里没有的那些行连同位置一起返回。OCR 用的是 Apple 的 Vision 框架，通过 `osascript` 调用（`resources/vision-ocr.js`）：支持中英文，什么都不用装，**仅限 macOS**。Linux 和 Termux 上没有 OCR，控件树不够用时改为附上截图。
+游戏、画布、地图这类 App 的控件树里几乎没有带名字的节点，所以 `android_tree` 返回之前会先判断控件树够不够用：带名字的元素够不够多、控件大多有没有标签、有没有大块区域一个字都没有。拿不准时就读屏幕上的文字，把控件树里没有的那些行连同位置一起返回；控件树几乎为空（`unusable`）时还会附上截图，因为游戏里的图标没有文字可读。OCR 用的是 Apple 的 Vision 框架，通过 `osascript` 调用（`resources/vision-ocr.js`）：支持中英文，什么都不用装，**仅限 macOS**。Linux 和 Termux 上没有 OCR，控件树不够用时改为附上截图。
 
 截图会缩小（短边最多 768 像素），存在扩展自己的 artifacts 目录里；无痕会话的截图随会话一起删除。macOS 上用 `sips` 转换，其他系统用 PHP 的 GD；两者都没有时，原尺寸 PNG 原样发出。
 

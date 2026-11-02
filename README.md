@@ -75,7 +75,7 @@ ANDROID_HOME=~/Library/Android/sdk helper/build.sh
 
 ### Apps that draw their own UI
 
-A game, a canvas or a map has few named nodes or none, so `android_tree` judges the tree before returning it — enough named elements, most controls labelled, no large area without text. When it is not clearly enough, it reads the text on the screen and returns the lines the tree lacks, with their positions. The OCR is Apple's Vision framework, run through `osascript` (`resources/vision-ocr.js`): Chinese and English, nothing to install, **macOS only**. On Linux and Termux there is no OCR, and a tree that falls short comes with the screenshot instead.
+A game, a canvas or a map has few named nodes or none, so `android_tree` judges the tree before returning it — enough named elements, most controls labelled, no large area without text. When it is not clearly enough, it reads the text on the screen and returns the lines the tree lacks, with their positions; a tree with next to nothing in it (`unusable`) also comes with the screenshot, since a game's icons have no text to read. The OCR is Apple's Vision framework, run through `osascript` (`resources/vision-ocr.js`): Chinese and English, nothing to install, **macOS only**. On Linux and Termux there is no OCR, and a tree that falls short comes with the screenshot instead.
 
 Screenshots are scaled down (short side at most 768 px) and kept in the extension's artifacts directory; an incognito session's go with it. On macOS they are converted with `sips`, elsewhere with PHP's GD; with neither, the full-size PNG is sent as it is.
 
