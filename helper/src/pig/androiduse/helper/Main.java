@@ -37,7 +37,7 @@ import java.util.Map;
  */
 public final class Main {
     /** Bumped with every change to the protocol; pig restarts a helper whose version differs. */
-    static final int VERSION = 3;
+    static final int VERSION = 5;
 
     private static final long IDLE_MS = 15 * 60 * 1000;
 
@@ -111,12 +111,14 @@ public final class Main {
         switch (cmd) {
             case "ping": {
                 JSONArray ids = new JSONArray();
+                JSONArray screens = new JSONArray();
                 synchronized (displays) {
-                    for (int id : displays.keySet()) {
-                        ids.put(id);
+                    for (AgentDisplay display : displays.values()) {
+                        ids.put(display.id);
+                        screens.put(display.status());
                     }
                 }
-                return ok().put("version", VERSION).put("sdk", Build.VERSION.SDK_INT).put("displays", ids);
+                return ok().put("version", VERSION).put("sdk", Build.VERSION.SDK_INT).put("displays", ids).put("screens", screens);
             }
 
             case "create": {
@@ -159,6 +161,17 @@ public final class Main {
                     }
                 }
                 return ok().put("xml", ViewTree.dump(context, id));
+            }
+
+            case "activity": {
+                AgentDisplay display;
+                synchronized (displays) {
+                    display = displays.get(request.getInt("id"));
+                }
+                if (display == null) {
+                    return error("no background screen " + request.getInt("id") + " (the helper may have restarted)");
+                }
+                return ok().put("reported", display.reportActivity()).put("screen", display.status());
             }
 
             case "quit":

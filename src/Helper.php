@@ -23,11 +23,17 @@ final class Helper
     public const string REMOTE_DEX = '/data/local/tmp/pig-android-helper.dex';
     public const string MAIN_CLASS = 'pig.androiduse.helper.Main';
     /** Main.VERSION in the helper this package ships. */
-    public const int VERSION = 3;
+    public const int VERSION = 5;
     /** Display.DEFAULT_DISPLAY, the phone's own screen. */
     public const int MAIN_DISPLAY = 0;
     /** Android 12: the per-display user-activity call and the display flags the helper relies on. */
     public const int MIN_SDK = 31;
+
+    /** Display.STATE_ON. */
+    private const int STATE_ON = 2;
+    /** KEYCODE_WAKEUP: turns a screen on without unlocking it. */
+    private const int KEYCODE_WAKEUP = 224;
+    private const float WAKE_TIMEOUT = 1.5;
 
     private const string SOCKET = 'pig-android-helper';
     private const string LOG = '/data/local/tmp/pig-android-helper.log';
@@ -58,11 +64,11 @@ final class Helper
         $displays = array_map('intval', (array) ($this->request($serial, 'ping')['displays'] ?? []));
 
         if (isset($this->screens[$key]) && in_array($this->screens[$key], $displays, true)) {
-            return $this->screens[$key];
+            return $this->awake($serial, $this->screens[$key]);
         }
 
         if ($displays !== []) {
-            return $this->screens[$key] = $displays[0];
+            return $this->awake($serial, $this->screens[$key] = $displays[0]);
         }
 
         $size = $this->adb->screenSize($serial) ?? throw new RuntimeException('Could not read the screen size (`wm size`) for the background screen.');
@@ -70,7 +76,39 @@ final class Helper
 
         $reply = $this->request($serial, 'create', ['width' => $size['width'], 'height' => $size['height'], 'dpi' => $dpi]);
 
-        return $this->screens[$key] = (int) $reply['id'];
+        return $this->awake($serial, $this->screens[$key] = (int) $reply['id']);
+    }
+
+    /**
+     * Make sure the background screen is on before pig acts on it, and restart its group's sleep
+     * timer. A screen in a group of its own is woken by itself; one the system put in the main
+     * screen's group (Android 17 on some phones) sleeps when the phone does, so the phone is woken —
+     * to its lock screen, not unlocked: the background screen shows anyway (ALWAYS_UNLOCKED). Called
+     * on every action there, so the phone stays awake while pig works on it, and sleeps on its own
+     * timer once pig stops.
+     */
+    private function awake(?string $serial, int $display): int
+    {
+        $screen = (array) ($this->request($serial, 'activity', ['id' => $display])['screen'] ?? []);
+
+        if (($screen['state'] ?? null) === self::STATE_ON) {
+            return $display;
+        }
+
+        $target = ($screen['group'] ?? 0) === 0 ? '' : " -d {$display}";
+        $this->adb->executeShell('input' . $target . ' keyevent ' . self::KEYCODE_WAKEUP, $serial);
+
+        $deadline = microtime(true) + self::WAKE_TIMEOUT;
+        do {
+            usleep(150_000);
+            $screen = (array) ($this->request($serial, 'activity', ['id' => $display])['screen'] ?? []);
+            if (($screen['state'] ?? null) === self::STATE_ON) {
+                return $display;
+            }
+        } while (microtime(true) < $deadline);
+
+        throw new RuntimeException('The background screen is off (display state ' . json_encode($screen['state'] ?? null)
+            . ', group ' . json_encode($screen['group'] ?? null) . ') and did not come on when woken.');
     }
 
     /** The background screen if there is one now, without starting the helper to find out. */

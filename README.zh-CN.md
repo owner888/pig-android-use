@@ -65,7 +65,7 @@ pig install git:github.com/owner888/pig-android-use
 
 `screen: "background"` 操作的是 pig 在手机上自己的一块屏，用户看不到：用 `android_launch_app(screen="background")` 在上面打开的 App 照常运行，用户可以同时用手机。这块屏是 pig 在手机上运行的一个小助手建的虚拟屏（`helper/`，Java，不依赖任何库）：pig 把 `helper/pig-android-helper.dex` 推到 `/data/local/tmp`，以 shell 身份用 `app_process` 启动，通过 `adb forward` 和它通信，请求要带只有 pig 知道的令牌。小助手负责持有这块屏和截图，还负责读控件树——这块屏的和主屏的都由它读，比 `uiautomator dump` 快（后者每读一次都要在手机上写一个文件）。它通过 UiAutomation 读取，每次读时连上、读完断开，这样别的程序照常可以用 `uiautomator dump`，也不会屏蔽用户手机上已开启的无障碍服务；点击、按键、启动 App 用 adb 发过去（`input -d`、`am start --display`）。
 
-需要 Android 12 及以上。如果系统把这块屏放进主屏所在的显示组（Android 17 就是这样，`create` 的返回里会显示 `group=0`），手机息屏时它也会跟着停；这种情况下 pig 不会替它保持常亮，因为那样会让用户的主屏也一直亮着。`/android background` 查看状态，`/android background off` 关掉它和上面的 App；小助手 15 分钟没有请求会自己退出。
+需要 Android 12 及以上。手机锁屏时也能用：pig 每次操作这块屏之前，如果它灭了就先唤醒，并重置它的息屏计时，所以 pig 干活期间它一直亮着，pig 停下后它按自己的计时息屏。拥有独立显示组的副屏只唤醒它自己。有些系统不管标志位怎么设，都把它放进主屏所在的显示组（小米的 Android 17 就是这样），这时唤醒的是手机本身——只亮出锁屏界面，不会解锁；副屏照常显示（`ALWAYS_UNLOCKED`）。`/android background` 查看状态，`/android background off` 关掉它和上面的 App；小助手 15 分钟没有请求会自己退出。
 
 编译好的 .dex 已经提交在仓库里，使用时不用编译。改了 `helper/src` 之后用 Android SDK 重新编译：
 

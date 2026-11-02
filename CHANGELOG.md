@@ -8,6 +8,7 @@ have entries (`### New Features`, `### Added`, `### Changed`, `### Fixed`). Note
 
 ### Fixed
 
+- Fixed the background screen going dark when the phone locked: on systems that put it in the main screen's display group whatever the flags say (Android 17 on Xiaomi), it slept with the phone, and screenshots were black. Before each action on it pig now wakes it if it is off — the phone itself in that case, to its lock screen, not unlocked — and the helper reports a user activity to its group, so it stays on while pig works and sleeps on its own timer once pig stops. The helper's keep-awake reads the display group on every tick, since the group is assigned after the display is made; `ping` reports each screen's group and state.
 - Fixed taps landing off target after reading the tree: rects were scaled by whatever the last screenshot had set — 1:1 before any screenshot, so a screenshot taken between reading the tree and tapping moved every target. Each screen now keeps its own ratio, and `android_tree` sets it from the screen size in the tree itself (rotation included), the same one a screenshot of that screen gets; the result says which `viewport` its rects are in. The web UI's live screen no longer changes the model's coordinates.
 
 ### New Features

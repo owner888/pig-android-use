@@ -60,6 +60,10 @@ final class AgentDisplay {
     /** Why keepAwake is what it is: the display group and whether the per-display report exists. */
     final String keepAwakeReason;
 
+    /** IPowerManager and its per-display userActivity; null when this system has no per-display report. */
+    private final Object power;
+    private final Method userActivity;
+
     private final VirtualDisplay display;
     private final ImageReader reader;
     private final HandlerThread thread;
@@ -79,15 +83,26 @@ final class AgentDisplay {
         this.id = display.getDisplay().getDisplayId();
 
         setImePolicy(id);
-        Method userActivity = userActivityMethod();
-        int group = displayGroup(id);
-        this.keepAwake = trusted && userActivity != null && group != DEFAULT_DISPLAY_GROUP;
-        this.keepAwakeReason = "trusted=" + trusted + " group=" + group + " per-display userActivity=" + (userActivity != null);
+        this.userActivity = userActivityMethod();
+        this.power = userActivity != null ? powerManager() : null;
+        // The display group is assigned on the display thread after the display exists, so it is
+        // read again on every tick rather than once here: a report goes only to a screen whose
+        // group is its own by then, never to the person's (group 0), which it would keep on.
+        this.keepAwake = trusted && userActivity != null;
+        this.keepAwakeReason = "trusted=" + trusted + " per-display userActivity=" + (userActivity != null) + " group at creation=" + displayGroup(id);
         System.out.println("display " + id + " created, keep-awake " + keepAwake + " (" + keepAwakeReason + ")");
         this.awake = keepAwake ? Executors.newSingleThreadScheduledExecutor() : null;
         if (awake != null) {
-            Object power = powerManager();
+            int[] lastGroup = {Integer.MIN_VALUE};
             awake.scheduleWithFixedDelay(() -> {
+                int group = displayGroup(id);
+                if (group != lastGroup[0]) {
+                    System.out.println("display " + id + " is in display group " + group + (group == DEFAULT_DISPLAY_GROUP ? " (the main screen's: not kept awake)" : " (its own: kept awake)"));
+                    lastGroup[0] = group;
+                }
+                if (group == DEFAULT_DISPLAY_GROUP) {
+                    return;
+                }
                 try {
                     userActivity.invoke(power, id, SystemClock.uptimeMillis(), USER_ACTIVITY_EVENT_TOUCH, 0);
                 } catch (Exception e) {
@@ -230,6 +245,44 @@ final class AgentDisplay {
             wm.getClass().getMethod("setDisplayImePolicy", int.class, int.class).invoke(wm, displayId, IME_POLICY_LOCAL);
         } catch (Exception e) {
             System.err.println("setDisplayImePolicy failed for display " + displayId + ": " + cause(e));
+        }
+    }
+
+    /**
+     * Report a user activity to this screen's display group, once: the group's sleep timer starts
+     * again. pig calls it on every action on the background screen, so a screen that shares the
+     * main screen's group (some systems put it there whatever the flags say) keeps the phone awake
+     * while pig works on it, and only then.
+     *
+     * @return whether the report could be made
+     */
+    boolean reportActivity() {
+        if (userActivity == null) {
+            return false;
+        }
+        try {
+            userActivity.invoke(power, id, SystemClock.uptimeMillis(), USER_ACTIVITY_EVENT_TOUCH, 0);
+            return true;
+        } catch (Exception e) {
+            System.err.println("userActivity for display " + id + " failed: " + cause(e));
+            return false;
+        }
+    }
+
+    /** This screen's display group and power state (Display.STATE_*: 1 off, 2 on, 3 doze), as the system has them now. */
+    JSONObject status() throws Exception {
+        return new JSONObject().put("id", id).put("group", displayGroup(id)).put("state", displayState(id));
+    }
+
+    /** DisplayInfo.state (hidden field); -1 when it cannot be read. */
+    private static int displayState(int displayId) {
+        try {
+            Object global = Class.forName("android.hardware.display.DisplayManagerGlobal").getMethod("getInstance").invoke(null);
+            Object info = global.getClass().getMethod("getDisplayInfo", int.class).invoke(global, displayId);
+            return info.getClass().getField("state").getInt(info);
+        } catch (Exception e) {
+            System.err.println("state unreadable for display " + displayId + ": " + cause(e));
+            return -1;
         }
     }
 

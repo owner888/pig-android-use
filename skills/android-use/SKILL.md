@@ -75,7 +75,7 @@ pig has a screen of its own on the phone that the person does not see: an app op
 - `android_tree(screen="background")` reads its view tree as on the main screen.
 - `home` has no launcher there; open another app with `android_launch_app` instead.
 - One app runs in one place: an app open on the background screen is not also on the main screen. If the person opens it themselves, it moves to them; open it again in the background when they are done.
-- It is awake while the phone's screen is: when the phone sleeps or locks, the background screen stops too (on systems that keep it in the main screen's display group, as Android 17 does). Wake the phone with `android_ready` first.
+- It works while the phone is locked: each call on it wakes the screen if it is off and keeps it from sleeping while you work. On some phones that lights up the person's lock screen (not unlocked) for the time you work; it goes dark on its own timer once you stop.
 - It needs Android 12 or newer — as does `android_tree` on either screen, which reads through the same helper. `/android background off` closes it and the app on it; it also closes after 15 minutes without use.
 
 ## 9. When to stop and hand over
