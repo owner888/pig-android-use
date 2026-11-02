@@ -39,7 +39,7 @@ android_ready()
 ## 3. The view tree
 
 - **Exact targets in native apps**: when you need the exact text in a native app (Settings, WeChat, shopping apps), a list of search results, or the screenshot is not clear enough, call `android_tree(max_nodes=60)`.
-- It returns the useful nodes with `type`, `text`, `desc`, `id` and a converted `rect: [x, y, w, h]`; tap the centre to interact.
+- It returns the useful nodes with `type`, `text`, `desc`, `id` and a `rect: [x, y, w, h]` in the same coordinates as that screen's screenshots (`viewport` says their size); tap the centre to interact, with or without a screenshot in between.
 - It also says whether the tree is enough to work from: `tree_quality` is `adequate`, `partial` (some of the screen is not in it) or `unusable` (an app that draws its own UI: a game, a canvas, a map). When it is not adequate, on macOS the result has `ocr_lines` — the text on the screen the tree lacks, each with a `rect` in the same coordinates — and the screenshot comes along when even OCR found nothing. Elsewhere there is no OCR, and a partial or unusable tree comes with the screenshot instead; `unchecked` means the tree could not be checked against the screen.
 
 ## 4. Batches
@@ -72,11 +72,11 @@ pig has a screen of its own on the phone that the person does not see: an app op
 
 - Open the app there: `android_launch_app(package="com.tencent.mm", screen="background")`. Then pass `screen="background"` to every call for that work — `android_observe`, `android_tap`, `android_swipe`, `android_type_text`, `android_press_button`, `android_batch`, `android_tree`. A call without it goes to the main screen, in front of the person.
 - Coordinates come from that screen's own screenshot, as on the main screen.
-- `android_tree(screen="background")` reads its view tree as on the main screen, and is the fast way to find a target there.
+- `android_tree(screen="background")` reads its view tree as on the main screen.
 - `home` has no launcher there; open another app with `android_launch_app` instead.
 - One app runs in one place: an app open on the background screen is not also on the main screen. If the person opens it themselves, it moves to them; open it again in the background when they are done.
 - It is awake while the phone's screen is: when the phone sleeps or locks, the background screen stops too (on systems that keep it in the main screen's display group, as Android 17 does). Wake the phone with `android_ready` first.
-- It needs Android 12 or newer. `/android background off` closes it and the app on it; it also closes after 15 minutes without use.
+- It needs Android 12 or newer — as does `android_tree` on either screen, which reads through the same helper. `/android background off` closes it and the app on it; it also closes after 15 minutes without use.
 
 ## 9. When to stop and hand over
 

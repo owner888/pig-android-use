@@ -20,7 +20,7 @@ Before this package existed, Android use was bundled with pig. `pig update` remo
 | --- | --- |
 | `android_ready` | Checks for a device, wakes the screen, returns the foreground app, the viewport and a screenshot. Call it first. |
 | `android_observe` | A screenshot and/or the foreground app |
-| `android_tree` | The view hierarchy as compact nodes (`type`, `text`, `desc`, `id`, `rect`) — exact targets in native apps. Says whether the tree is enough (`tree_quality`); when it is not, adds the screen text it lacks (OCR, macOS) or the screenshot |
+| `android_tree` | The view hierarchy as compact nodes, read by the phone helper (below; Android 12+) (`type`, `text`, `desc`, `id`, `rect`) — exact targets in native apps. Says whether the tree is enough (`tree_quality`); when it is not, adds the screen text it lacks (OCR, macOS) or the screenshot |
 | `android_tap` | Tap at screenshot coordinates; converted to device pixels, ±2 px jitter |
 | `android_swipe` | Swipe by direction, or drag between two points |
 | `android_type_text` | Type into the focused field — Chinese, symbols, several lines (through the Android clipboard, no keyboard app needed) |
@@ -63,7 +63,7 @@ Three more skills from Mika, in Chinese: `messaging` (read chats and mail, draft
 
 ### The background screen
 
-`screen: "background"` works on pig's own screen on the phone, which the person does not see: an app opened there with `android_launch_app(screen="background")` runs while they keep using the phone. It is a virtual display made by a small helper pig runs on the phone (`helper/`, Java, no libraries): pig pushes `helper/pig-android-helper.dex` to `/data/local/tmp`, starts it with `app_process` as the shell user, and talks to it through `adb forward`, with a token only pig knows. The helper holds the screen, takes its screenshots and reads its view tree (through UiAutomation, connected for each read so `uiautomator dump` keeps working on the main screen, and without suppressing the person's accessibility services); taps, keys and launches go to it with adb (`input -d`, `am start --display`).
+`screen: "background"` works on pig's own screen on the phone, which the person does not see: an app opened there with `android_launch_app(screen="background")` runs while they keep using the phone. It is a virtual display made by a small helper pig runs on the phone (`helper/`, Java, no libraries): pig pushes `helper/pig-android-helper.dex` to `/data/local/tmp`, starts it with `app_process` as the shell user, and talks to it through `adb forward`, with a token only pig knows. The helper holds the screen and takes its screenshots. It also reads the view tree, of this screen and of the main one, faster than `uiautomator dump` (which writes a file on the phone for every read): through UiAutomation, connected for each read so `uiautomator dump` still works for anything else, and without suppressing the person's accessibility services; taps, keys and launches go to it with adb (`input -d`, `am start --display`).
 
 Android 12 or newer. Where the system keeps the screen in the main screen's display group (Android 17 does, `create` reports `group=0`), it sleeps when the phone does; pig does not keep it awake then, since that would keep the person's screen on too. `/android background` shows it, `/android background off` closes it and the app on it; the helper exits by itself after 15 minutes without a request.
 

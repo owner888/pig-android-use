@@ -704,25 +704,4 @@ final class AdbClient
             usleep(100000);
         }
     }
-
-    /**
-     * Dump UI hierarchy XML from the device.
-     */
-    public function dumpWindowHierarchy(?string $serial = null, int $timeoutSeconds = 8): ?string
-    {
-        $tmpXml = '/data/local/tmp/uidump.xml';
-        // Run uiautomator dump
-        $dumpRes = $this->executeShell("uiautomator dump {$tmpXml}", $serial, $timeoutSeconds);
-        if ($dumpRes['exit'] !== 0) {
-            return null;
-        }
-
-        // Cat file content and cleanup
-        $catRes = $this->executeShell("cat {$tmpXml} && rm -f {$tmpXml}", $serial, $timeoutSeconds);
-        if ($catRes['exit'] === 0 && str_contains($catRes['stdout'], '<hierarchy')) {
-            return $catRes['stdout'];
-        }
-
-        return null;
-    }
 }

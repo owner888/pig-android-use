@@ -20,7 +20,7 @@ pig install git:github.com/owner888/pig-android-use
 | --- | --- |
 | `android_ready` | 检查设备、点亮屏幕，返回前台 App、视口大小和一张截图。先调它。 |
 | `android_observe` | 截图和/或前台 App |
-| `android_tree` | 精简的控件树节点（`type`、`text`、`desc`、`id`、`rect`）——原生 App 里的精确目标。会说明控件树够不够用（`tree_quality`）；不够用时补上树里没有的屏幕文字（OCR，macOS）或截图 |
+| `android_tree` | 精简的控件树节点，由手机端小助手读取（见下文；需 Android 12+）（`type`、`text`、`desc`、`id`、`rect`）——原生 App 里的精确目标。会说明控件树够不够用（`tree_quality`）；不够用时补上树里没有的屏幕文字（OCR，macOS）或截图 |
 | `android_tap` | 按截图坐标点击；自动换算成设备像素，带 ±2 像素抖动 |
 | `android_swipe` | 按方向滑动，或在两点之间拖动 |
 | `android_type_text` | 往获得焦点的输入框里打字——中文、符号、多行都行（走 Android 剪贴板，不用装输入法 App） |
@@ -63,7 +63,7 @@ pig install git:github.com/owner888/pig-android-use
 
 ### 后台副屏
 
-`screen: "background"` 操作的是 pig 在手机上自己的一块屏，用户看不到：用 `android_launch_app(screen="background")` 在上面打开的 App 照常运行，用户可以同时用手机。这块屏是 pig 在手机上运行的一个小助手建的虚拟屏（`helper/`，Java，不依赖任何库）：pig 把 `helper/pig-android-helper.dex` 推到 `/data/local/tmp`，以 shell 身份用 `app_process` 启动，通过 `adb forward` 和它通信，请求要带只有 pig 知道的令牌。小助手负责持有这块屏、截图和读控件树（通过 UiAutomation 读取，每次读时连上、读完断开，这样主屏的 `uiautomator dump` 照常可用，也不会屏蔽用户手机上已开启的无障碍服务）；点击、按键、启动 App 用 adb 发过去（`input -d`、`am start --display`）。
+`screen: "background"` 操作的是 pig 在手机上自己的一块屏，用户看不到：用 `android_launch_app(screen="background")` 在上面打开的 App 照常运行，用户可以同时用手机。这块屏是 pig 在手机上运行的一个小助手建的虚拟屏（`helper/`，Java，不依赖任何库）：pig 把 `helper/pig-android-helper.dex` 推到 `/data/local/tmp`，以 shell 身份用 `app_process` 启动，通过 `adb forward` 和它通信，请求要带只有 pig 知道的令牌。小助手负责持有这块屏和截图，还负责读控件树——这块屏的和主屏的都由它读，比 `uiautomator dump` 快（后者每读一次都要在手机上写一个文件）。它通过 UiAutomation 读取，每次读时连上、读完断开，这样别的程序照常可以用 `uiautomator dump`，也不会屏蔽用户手机上已开启的无障碍服务；点击、按键、启动 App 用 adb 发过去（`input -d`、`am start --display`）。
 
 需要 Android 12 及以上。如果系统把这块屏放进主屏所在的显示组（Android 17 就是这样，`create` 的返回里会显示 `group=0`），手机息屏时它也会跟着停；这种情况下 pig 不会替它保持常亮，因为那样会让用户的主屏也一直亮着。`/android background` 查看状态，`/android background off` 关掉它和上面的 App；小助手 15 分钟没有请求会自己退出。
 

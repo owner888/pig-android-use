@@ -98,6 +98,22 @@ final class ScreenCapture
     }
 
     /**
+     * The coordinates a screenshot of a screen this size is in, without taking one: its viewport
+     * and the pixel-to-point ratio, computed as process() computes them.
+     *
+     * @return array{viewport: array{width: int, height: int}, pixel_to_point: array{float, float}}
+     */
+    public static function spaceFor(int $width, int $height): array
+    {
+        $fitted = self::fitDimensions($width, $height);
+
+        return [
+            'viewport' => ['width' => $fitted['width'], 'height' => $fitted['height']],
+            'pixel_to_point' => [round($width / (float) $fitted['width'], 4), round($height / (float) $fitted['height'], 4)],
+        ];
+    }
+
+    /**
      * Generate standard artifact output file paths.
      *
      * @return array{base: string, jpg: string, png: string}

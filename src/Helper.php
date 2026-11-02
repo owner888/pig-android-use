@@ -11,8 +11,9 @@ use RuntimeException;
  * shell user, reaches it through `adb forward`, and keeps pig's background screen on it.
  *
  * The background screen is a virtual display the person never sees: an app launched there runs
- * while the phone is in use. The helper holds its picture, takes its screenshots and reads its view
- * tree; taps, keys and launches go to it with adb (`input -d`, `am start --display`).
+ * while the phone is in use. The helper holds its picture and takes its screenshots; it also reads
+ * the view tree, of that screen and of the main one. Taps, keys and launches go to the background
+ * screen with adb (`input -d`, `am start --display`).
  *
  * Each request is one connection, one JSON line each way, with the token pig made when it started
  * the helper. The helper exits by itself after 15 minutes without a request.
@@ -22,7 +23,9 @@ final class Helper
     public const string REMOTE_DEX = '/data/local/tmp/pig-android-helper.dex';
     public const string MAIN_CLASS = 'pig.androiduse.helper.Main';
     /** Main.VERSION in the helper this package ships. */
-    public const int VERSION = 2;
+    public const int VERSION = 3;
+    /** Display.DEFAULT_DISPLAY, the phone's own screen. */
+    public const int MAIN_DISPLAY = 0;
     /** Android 12: the per-display user-activity call and the display flags the helper relies on. */
     public const int MIN_SDK = 31;
 
@@ -137,7 +140,9 @@ final class Helper
     }
 
     /**
-     * The background screen's view tree, as the XML `uiautomator dump` writes for the main screen.
+     * A screen's view tree — the main screen's (MAIN_DISPLAY) or the background one's — in the
+     * XML `uiautomator dump` writes. Read by the helper through UiAutomation, without the file
+     * `uiautomator dump` writes on the phone and reads back for every call.
      */
     public function tree(?string $serial, int $display): string
     {

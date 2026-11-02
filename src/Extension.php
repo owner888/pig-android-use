@@ -22,8 +22,25 @@ final class Extension
     {
         $adb = new AdbClient();
         ScreenCapture::useDirectory($pi->artifactsDirectory(...));
-        /** @var array{float, float} Last observed pixel-to-point scaling ratio */
-        $lastScale = [1.0, 1.0];
+        /**
+         * Each screen's pixel-to-point ratio, by display id: the coordinates the model sees on it
+         * (screenshots, tree rects) times this are the device's. Set by every screenshot and every
+         * tree read of that screen, so a tap goes where the last look at that screen said.
+         *
+         * @var array<int, array{float, float}>
+         */
+        $scales = [];
+
+        /** A screen's ratio; never looked at yet, the one a screenshot of its `wm size` would have. */
+        $scaleOf = static function (?int $display, ?string $serial) use ($adb, &$scales): array {
+            $key = $display ?? Helper::MAIN_DISPLAY;
+            if (!isset($scales[$key])) {
+                $size = $adb->screenSize($serial) ?? throw new \RuntimeException('Could not read the screen size (`wm size`) to place the coordinates.');
+                $scales[$key] = ScreenCapture::spaceFor($size['width'], $size['height'])['pixel_to_point'];
+            }
+
+            return $scales[$key];
+        };
         $helper = new Helper($adb);
 
         /** The `screen` parameter the screen tools share. */
@@ -49,7 +66,7 @@ final class Extension
         $pi->registerCommand(
             name: 'android',
             description: 'Android device controller: /android status | connect <ip:port> | screenshot | background [off]',
-            handler: static function (string $args, $ctx) use ($adb, $helper, &$lastScale): void {
+            handler: static function (string $args, $ctx) use ($adb, $helper, &$scales): void {
                 $parts = preg_split('/\s+/', trim($args), 2, PREG_SPLIT_NO_EMPTY);
                 $sub = strtolower($parts[0] ?? 'status');
                 $param = trim($parts[1] ?? '');
@@ -117,7 +134,7 @@ final class Extension
                         return;
                     }
 
-                    $lastScale = $processed['pixel_to_point'];
+                    $scales[Helper::MAIN_DISPLAY] = $processed['pixel_to_point'];
                     $methodTag = ($processed['method'] ?? '') === 'hardware_h264' ? ' (⚡ hardware accelerated)' : '';
                     $ctx->ui->notify(
                         "📸 Screenshot captured{$methodTag}: {$processed['width']}x{$processed['height']} " .
@@ -149,13 +166,13 @@ final class Extension
         // -------------------------------------------------------------------------
         // Helper: take observation
         // -------------------------------------------------------------------------
-        $observeScreen = static function (?string $serial = null, ?int $display = null) use ($adb, $helper, &$lastScale): array {
+        $observeScreen = static function (?string $serial = null, ?int $display = null) use ($adb, $helper, &$scales): array {
             $processed = $display === null ? $adb->captureScreen($serial) : $helper->screenshot($serial, $display);
             if ($processed === null) {
                 throw new \RuntimeException('Failed to capture screen from Android device via ADB.');
             }
 
-            $lastScale = $processed['pixel_to_point'];
+            $scales[$display ?? Helper::MAIN_DISPLAY] = $processed['pixel_to_point'];
             $focus = $display === null ? $adb->currentFocus($serial) : $adb->displayFocus($display, $serial);
 
             return [
@@ -336,14 +353,14 @@ final class Extension
                 ],
                 'required' => ['x', 'y'],
             ],
-            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale, $screenOf): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $observeScreen, $scaleOf, $screenOf): AgentToolResult {
                 $x = (float) $params['x'];
                 $y = (float) $params['y'];
                 $serial = $params['serial'] ?? null;
                 $display = $screenOf($params, $serial);
                 $observe = (string) ($params['observe'] ?? 'none');
 
-                $tapped = InputManager::tap($adb, $x, $y, $lastScale, $serial, humanJitter: true, display: $display);
+                $tapped = InputManager::tap($adb, $x, $y, $scaleOf($display, $serial), $serial, humanJitter: true, display: $display);
 
                 $contents = [];
                 $res = [
@@ -397,7 +414,7 @@ final class Extension
                     'serial' => ['type' => 'string', 'description' => 'Optional specific device serial number.'],
                 ],
             ],
-            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale, $screenOf): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $observeScreen, $scaleOf, $screenOf): AgentToolResult {
                 $serial = $params['serial'] ?? null;
                 $display = $screenOf($params, $serial);
                 $duration = (int) ($params['duration_ms'] ?? 300);
@@ -412,7 +429,7 @@ final class Extension
                         (float) $params['to_x'],
                         (float) $params['to_y'],
                         $duration,
-                        $lastScale,
+                        $scaleOf($display, $serial),
                         $serial,
                         $display
                     );
@@ -595,14 +612,14 @@ final class Extension
                     'serial' => ['type' => 'string', 'description' => 'Optional specific device serial number.'],
                 ],
             ],
-            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale, $screenOf, $helper): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $observeScreen, $scaleOf, &$scales, $screenOf, $helper): AgentToolResult {
                 $serial = $params['serial'] ?? null;
                 $display = $screenOf($params, $serial);
                 $maxNodes = max(1, min(200, (int) ($params['max_nodes'] ?? 60)));
 
-                // A failed dump (a secure or custom-drawn surface) is a tree with nothing in it.
-                // `uiautomator dump` reads the main screen only; the helper reads the background one.
-                $rawXml = $display === null ? ($adb->dumpWindowHierarchy($serial) ?? '') : $helper->tree($serial, $display);
+                // The helper reads either screen. A secure or custom-drawn surface comes back as a
+                // tree with nothing in it, which TreeQuality calls unusable.
+                $rawXml = $helper->tree($serial, $display ?? Helper::MAIN_DISPLAY);
                 $check = TreeQuality::ofTree($rawXml);
                 $focus = $display === null ? $adb->currentFocus($serial) : $adb->displayFocus($display, $serial);
                 $result = [
@@ -636,7 +653,16 @@ final class Extension
                     $result['viewport'] = ['width' => $obs['viewport_width'], 'height' => $obs['viewport_height']];
                 }
 
-                $nodes = TreeParser::parse($rawXml, $lastScale, $maxNodes);
+                // The tree says how big the screen is now (rotation included): its rects go into the
+                // coordinates a screenshot of it has, and that screen's taps use the same ratio.
+                $size = TreeParser::screenSize($rawXml);
+                if ($size !== null) {
+                    $space = ScreenCapture::spaceFor($size['width'], $size['height']);
+                    $scales[$display ?? Helper::MAIN_DISPLAY] = $space['pixel_to_point'];
+                    $result['viewport'] = $space['viewport'];
+                }
+
+                $nodes = TreeParser::parse($rawXml, $scaleOf($display, $serial), $maxNodes);
                 $result['tree_quality'] = $check['quality'] ?? 'unchecked';
                 if ($check['reason'] !== null) {
                     $result['tree_quality_reason'] = $check['reason'];
@@ -678,7 +704,7 @@ final class Extension
                 ],
                 'required' => ['steps'],
             ],
-            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale, $screenOf): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $observeScreen, $scaleOf, $screenOf): AgentToolResult {
                 $steps = (array) ($params['steps'] ?? []);
                 if (count($steps) > 15) {
                     throw new \RuntimeException('Batch steps exceed maximum budget of 15 operations.');
@@ -688,7 +714,7 @@ final class Extension
                 $display = $screenOf($params, $serial);
                 $observe = (string) ($params['observe'] ?? 'screenshot');
 
-                $batchRes = InputManager::batch($adb, $steps, $lastScale, $serial, $display);
+                $batchRes = InputManager::batch($adb, $steps, $scaleOf($display, $serial), $serial, $display);
 
                 $contents = [];
                 $res = [
@@ -717,14 +743,14 @@ final class Extension
         // -------------------------------------------------------------------------
         // Web HTTP Route: /api/android (Screen Monitoring & Inspection)
         // -------------------------------------------------------------------------
-        $pi->registerHttpRoute('/api/android', static function (string $path, array $req) use ($adb, $observeScreen, &$lastScale): ?array {
+        $pi->registerHttpRoute('/api/android', static function (string $path, array $req) use ($adb, $observeScreen): ?array {
             if ($path === '/api/android/screen.jpg' && $req['method'] === 'GET') {
                 $raw = $adb->screencapRaw();
                 if ($raw === null) {
                     return ['status' => 503, 'body' => 'Device screen unavailable.'];
                 }
+                // For the person watching: the model's coordinates stay as its own last look set them.
                 $processed = ScreenCapture::process($raw);
-                $lastScale = $processed['pixel_to_point'];
 
                 return [
                     'status' => 200,

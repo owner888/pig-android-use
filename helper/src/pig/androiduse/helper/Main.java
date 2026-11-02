@@ -20,7 +20,8 @@ import java.util.Map;
 /**
  * pig-android-use's helper on the phone: the part of Android use that `adb shell` cannot do by
  * itself. It creates pig's background screen (a virtual display), keeps its picture, hands out
- * screenshots of it and reads its view tree (`uiautomator dump` reads the main screen only). Taps, keys and launching apps on that screen stay with adb
+ * screenshots of it, and reads the view tree of any screen — faster than `uiautomator dump`,
+ * which writes a file on the phone for each read. Taps, keys and launching apps on that screen stay with adb
  * (`input -d`, `am start --display`), which reach any display already.
  *
  * Started by pig over adb:
@@ -36,9 +37,12 @@ import java.util.Map;
  */
 public final class Main {
     /** Bumped with every change to the protocol; pig restarts a helper whose version differs. */
-    static final int VERSION = 2;
+    static final int VERSION = 3;
 
     private static final long IDLE_MS = 15 * 60 * 1000;
+
+    // Display.DEFAULT_DISPLAY
+    private static final int MAIN_DISPLAY = 0;
 
     private final String token;
     private final Context context;
@@ -147,9 +151,10 @@ public final class Main {
             }
 
             case "tree": {
+                // The main screen (0), or a background screen of this helper's: no one else's display.
                 int id = request.getInt("id");
                 synchronized (displays) {
-                    if (!displays.containsKey(id)) {
+                    if (id != MAIN_DISPLAY && !displays.containsKey(id)) {
                         return error("no background screen " + id + " (the helper may have restarted)");
                     }
                 }
