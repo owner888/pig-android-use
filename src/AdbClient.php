@@ -579,6 +579,86 @@ final class AdbClient
         return null;
     }
 
+    /** The screen density (`wm density`), the override when one is set. */
+    public function density(?string $serial = null): ?int
+    {
+        $res = $this->executeShell('wm density', $serial);
+        if ($res['exit'] !== 0) {
+            return null;
+        }
+
+        return self::parseDensity($res['stdout']);
+    }
+
+    public static function parseDensity(string $output): ?int
+    {
+        if (preg_match('/Override density:\s*(\d+)/i', $output, $m) === 1 || preg_match('/Physical density:\s*(\d+)/i', $output, $m) === 1) {
+            return (int) $m[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * The app on top of one display — the main screen's is `currentFocus()`; this one reads the
+     * activity stack, which lists every display.
+     *
+     * @return array{package: string, activity: string}|null
+     */
+    public function displayFocus(int $display, ?string $serial = null): ?array
+    {
+        $res = $this->executeShell('dumpsys activity activities', $serial, 20);
+
+        return $res['exit'] === 0 ? self::parseDisplayFocus($res['stdout'], $display) : null;
+    }
+
+    /**
+     * The resumed activity in the "Display #N" section of `dumpsys activity activities`.
+     *
+     * @return array{package: string, activity: string}|null
+     */
+    public static function parseDisplayFocus(string $dumpsys, int $display): ?array
+    {
+        $sections = preg_split('/^\s*Display #(\d+)/m', $dumpsys, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [];
+
+        for ($i = 1; $i + 1 < count($sections); $i += 2) {
+            if ((int) $sections[$i] !== $display) {
+                continue;
+            }
+
+            if (preg_match('/(?:topResumedActivity|mResumedActivity|ResumedActivity:)\s*[:=]?\s*ActivityRecord\{\S+ \S+ ([\w.]+)\/([\w.$]+)/', $sections[$i + 1], $m) === 1) {
+                return ['package' => $m[1], 'activity' => str_starts_with($m[2], '.') ? $m[1] . $m[2] : $m[2]];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Start an app's launcher activity on a display other than the main screen. `monkey`, which
+     * the main screen uses, has no display option, so the activity is resolved and started by name.
+     */
+    public function launchOnDisplay(string $package, int $display, ?string $serial = null): array
+    {
+        $resolve = $this->executeShell('cmd package resolve-activity --brief -c android.intent.category.LAUNCHER ' . escapeshellarg($package), $serial);
+        $component = self::launcherComponent($resolve['stdout']);
+
+        if ($component === null) {
+            throw new RuntimeException("No launcher activity for '{$package}': " . trim($resolve['stdout'] . ' ' . $resolve['stderr']));
+        }
+
+        return $this->executeShell('am start --display ' . $display . ' -n ' . escapeshellarg($component), $serial);
+    }
+
+    /** The `package/activity` line `cmd package resolve-activity --brief` ends with. */
+    public static function launcherComponent(string $output): ?string
+    {
+        $lines = array_values(array_filter(array_map('trim', explode("\n", $output)), static fn (string $l): bool => $l !== ''));
+        $last = $lines === [] ? '' : $lines[count($lines) - 1];
+
+        return preg_match('/^[\w.]+\/[\w.$]+$/', $last) === 1 ? $last : null;
+    }
+
     /**
      * Get currently focused App package and activity.
      *

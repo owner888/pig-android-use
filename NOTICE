@@ -16,5 +16,11 @@ src/TreeQuality.php follows the rules and thresholds of Mika's
 core/src/main/kotlin/com/wangzan101/mika/core/uistate/TreeQuality.kt,
 rewritten in PHP for uiautomator's XML.
 
+helper/src/pig/androiduse/helper/ShellContext.java builds the shell context the way
+scrcpy (https://github.com/Genymobile/scrcpy, Apache-2.0) made known, and
+AgentDisplay.java chooses the display flags, the keyboard policy and the
+keep-awake reports as Mika's ShellService.kt and DisplayAwake.kt do; both are
+written anew for this package.
+
 Mika
 Copyright 2026 wangzan101

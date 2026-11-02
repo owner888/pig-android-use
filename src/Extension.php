@@ -24,14 +24,32 @@ final class Extension
         ScreenCapture::useDirectory($pi->artifactsDirectory(...));
         /** @var array{float, float} Last observed pixel-to-point scaling ratio */
         $lastScale = [1.0, 1.0];
+        $helper = new Helper($adb);
+
+        /** The `screen` parameter the screen tools share. */
+        $screenParam = [
+            'type' => 'string',
+            'enum' => ['main', 'background'],
+            'description' => 'Which screen: "main" (default) is the phone\'s own; "background" is pig\'s own screen, which the person does not see, '
+                . 'so they can keep using the phone while you work. Open the app there first with android_launch_app(screen="background").',
+        ];
+
+        /** The display id for a tool call's `screen`: null for the main screen. */
+        $screenOf = static function (array $params, ?string $serial) use ($helper): ?int {
+            return match ($params['screen'] ?? 'main') {
+                'main' => null,
+                'background' => $helper->backgroundScreen($serial),
+                default => throw new \RuntimeException('screen must be "main" or "background".'),
+            };
+        };
 
         // -------------------------------------------------------------------------
         // Slash Command: /android
         // -------------------------------------------------------------------------
         $pi->registerCommand(
             name: 'android',
-            description: 'Android device controller: /android status | connect <ip:port> | screenshot',
-            handler: static function (string $args, $ctx) use ($adb, &$lastScale): void {
+            description: 'Android device controller: /android status | connect <ip:port> | screenshot | background [off]',
+            handler: static function (string $args, $ctx) use ($adb, $helper, &$lastScale): void {
                 $parts = preg_split('/\s+/', trim($args), 2, PREG_SPLIT_NO_EMPTY);
                 $sub = strtolower($parts[0] ?? 'status');
                 $param = trim($parts[1] ?? '');
@@ -110,21 +128,35 @@ final class Extension
                     return;
                 }
 
-                $ctx->ui->notify("Unknown command '/android {$sub}'. Available: /android status | connect <ip:port> | screenshot", 'warning');
+                if ($sub === 'background') {
+                if ($param === 'off') {
+                    $released = $helper->releaseBackground(null);
+                    $ctx->ui->notify($released ? 'Closed the background screen and the app on it.' : 'There is no background screen.');
+                    return;
+                }
+
+                $id = $helper->existingScreen(null);
+                $ctx->ui->notify($id === null
+                    ? 'No background screen. The model opens one with android_launch_app(screen="background").'
+                    : "Background screen: display {$id}. `/android background off` closes it; the helper also exits after 15 minutes unused.");
+                return;
+            }
+
+            $ctx->ui->notify("Unknown command '/android {$sub}'. Available: /android status | connect <ip:port> | screenshot | background [off]", 'warning');
             }
         );
 
         // -------------------------------------------------------------------------
         // Helper: take observation
         // -------------------------------------------------------------------------
-        $observeScreen = static function (?string $serial = null) use ($adb, &$lastScale): array {
-            $processed = $adb->captureScreen($serial);
+        $observeScreen = static function (?string $serial = null, ?int $display = null) use ($adb, $helper, &$lastScale): array {
+            $processed = $display === null ? $adb->captureScreen($serial) : $helper->screenshot($serial, $display);
             if ($processed === null) {
                 throw new \RuntimeException('Failed to capture screen from Android device via ADB.');
             }
 
             $lastScale = $processed['pixel_to_point'];
-            $focus = $adb->currentFocus($serial);
+            $focus = $display === null ? $adb->currentFocus($serial) : $adb->displayFocus($display, $serial);
 
             return [
                 'app' => $focus['package'] ?? 'unknown',
@@ -249,13 +281,15 @@ final class Extension
                         'enum' => ['screenshot', 'info', 'both'],
                         'description' => 'Observation mode. Default both.',
                     ],
+                    'screen' => $screenParam,
                     'serial' => ['type' => 'string', 'description' => 'Optional specific device serial number.'],
                 ],
             ],
-            execute: static function (string $id, array $params) use ($observeScreen): AgentToolResult {
+            execute: static function (string $id, array $params) use ($observeScreen, $screenOf): AgentToolResult {
                 $serial = $params['serial'] ?? null;
+                $display = $screenOf($params, $serial);
                 $mode = (string) ($params['mode'] ?? 'both');
-                $obs = $observeScreen($serial);
+                $obs = $observeScreen($serial, $display);
 
                 $contents = [];
                 $meta = [
@@ -297,17 +331,19 @@ final class Extension
                         'enum' => ['none', 'screenshot', 'both'],
                         'description' => 'Post-action observation. Default none.',
                     ],
+                    'screen' => $screenParam,
                     'serial' => ['type' => 'string', 'description' => 'Optional specific device serial number.'],
                 ],
                 'required' => ['x', 'y'],
             ],
-            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale, $screenOf): AgentToolResult {
                 $x = (float) $params['x'];
                 $y = (float) $params['y'];
                 $serial = $params['serial'] ?? null;
+                $display = $screenOf($params, $serial);
                 $observe = (string) ($params['observe'] ?? 'none');
 
-                $tapped = InputManager::tap($adb, $x, $y, $lastScale, $serial, humanJitter: true);
+                $tapped = InputManager::tap($adb, $x, $y, $lastScale, $serial, humanJitter: true, display: $display);
 
                 $contents = [];
                 $res = [
@@ -316,7 +352,7 @@ final class Extension
                 ];
 
                 if ($observe === 'screenshot' || $observe === 'both') {
-                    $obs = $observeScreen($serial);
+                    $obs = $observeScreen($serial, $display);
                     $res['observation'] = [
                         'app' => $obs['app'],
                         'viewport' => ['width' => $obs['viewport_width'], 'height' => $obs['viewport_height']],
@@ -357,11 +393,13 @@ final class Extension
                         'enum' => ['none', 'screenshot', 'both'],
                         'description' => 'Post-action observation. Default none.',
                     ],
+                    'screen' => $screenParam,
                     'serial' => ['type' => 'string', 'description' => 'Optional specific device serial number.'],
                 ],
             ],
-            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale, $screenOf): AgentToolResult {
                 $serial = $params['serial'] ?? null;
+                $display = $screenOf($params, $serial);
                 $duration = (int) ($params['duration_ms'] ?? 300);
                 $observe = (string) ($params['observe'] ?? 'none');
 
@@ -375,11 +413,12 @@ final class Extension
                         (float) $params['to_y'],
                         $duration,
                         $lastScale,
-                        $serial
+                        $serial,
+                        $display
                     );
                 } elseif (!empty($params['direction'])) {
                     $screen = $adb->screenSize($serial) ?? ['width' => 1080, 'height' => 2400];
-                    $info = InputManager::swipeDirection($adb, (string) $params['direction'], $screen, $duration, $serial);
+                    $info = InputManager::swipeDirection($adb, (string) $params['direction'], $screen, $duration, $serial, $display);
                 } else {
                     throw new \RuntimeException('Must provide either direction ("up", "down", "left", "right") or (from_x, from_y, to_x, to_y).');
                 }
@@ -391,7 +430,7 @@ final class Extension
                 ];
 
                 if ($observe === 'screenshot' || $observe === 'both') {
-                    $obs = $observeScreen($serial);
+                    $obs = $observeScreen($serial, $display);
                     $res['observation'] = [
                         'app' => $obs['app'],
                         'viewport' => ['width' => $obs['viewport_width'], 'height' => $obs['viewport_height']],
@@ -418,15 +457,17 @@ final class Extension
                 'type' => 'object',
                 'properties' => [
                     'text' => ['type' => 'string', 'description' => 'The full text to enter.'],
+                    'screen' => $screenParam,
                     'serial' => ['type' => 'string', 'description' => 'Optional specific device serial number.'],
                 ],
                 'required' => ['text'],
             ],
-            execute: static function (string $id, array $params) use ($adb): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $screenOf): AgentToolResult {
                 $text = (string) ($params['text'] ?? '');
                 $serial = $params['serial'] ?? null;
+                $display = $screenOf($params, $serial);
 
-                InputManager::typeText($adb, $text, $serial);
+                InputManager::typeText($adb, $text, $serial, $display);
 
                 return new AgentToolResult([new TextContent((string) json_encode([
                     'action_executed' => true,
@@ -450,15 +491,17 @@ final class Extension
                         'enum' => ['home', 'back', 'menu', 'power', 'volumeup', 'volumedown', 'enter', 'app_switch', 'recent'],
                         'description' => 'Button to press.',
                     ],
+                    'screen' => $screenParam,
                     'serial' => ['type' => 'string', 'description' => 'Optional specific device serial number.'],
                 ],
                 'required' => ['name'],
             ],
-            execute: static function (string $id, array $params) use ($adb): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $screenOf): AgentToolResult {
                 $button = (string) $params['name'];
                 $serial = $params['serial'] ?? null;
+                $display = $screenOf($params, $serial);
 
-                InputManager::pressButton($adb, $button, $serial);
+                InputManager::pressButton($adb, $button, $serial, $display);
 
                 return new AgentToolResult([new TextContent((string) json_encode([
                     'action_executed' => true,
@@ -478,26 +521,36 @@ final class Extension
                 'type' => 'object',
                 'properties' => [
                     'package' => ['type' => 'string', 'description' => 'Target application package name.'],
+                    'screen' => $screenParam,
                     'serial' => ['type' => 'string', 'description' => 'Optional specific device serial number.'],
                 ],
                 'required' => ['package'],
             ],
-            execute: static function (string $id, array $params) use ($adb): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $screenOf): AgentToolResult {
                 $pkg = trim((string) $params['package']);
                 $serial = $params['serial'] ?? null;
+                $display = $screenOf($params, $serial);
 
                 if ($pkg === '' || !preg_match('/^[a-zA-Z0-9._]+$/', $pkg)) {
                     throw new \RuntimeException('Invalid package name format.');
                 }
 
-                // Launch via monkey launcher intent
-                $res = $adb->executeShell("monkey -p {$pkg} -c android.intent.category.LAUNCHER 1", $serial);
+                // The main screen through monkey's launcher intent; another display by its launcher activity's name.
+                $res = $display === null
+                    ? $adb->executeShell("monkey -p {$pkg} -c android.intent.category.LAUNCHER 1", $serial)
+                    : $adb->launchOnDisplay($pkg, $display, $serial);
 
-                return new AgentToolResult([new TextContent((string) json_encode([
-                    'action_executed' => true,
-                    'package' => $pkg,
-                    'success' => $res['exit'] === 0,
-                ]))]);
+                // `am start` says "Error: …" and still exits 0 when the activity did not start.
+                $failed = $res['exit'] !== 0 || str_contains($res['stdout'] . $res['stderr'], 'Error');
+                $reply = ['action_executed' => true, 'package' => $pkg, 'success' => !$failed];
+                if ($display !== null) {
+                    $reply['screen'] = 'background';
+                }
+                if ($failed) {
+                    $reply['error'] = trim($res['stdout'] . ' ' . $res['stderr']);
+                }
+
+                return new AgentToolResult([new TextContent((string) json_encode($reply, JSON_UNESCAPED_SLASHES))]);
             }
         ));
 
@@ -538,27 +591,33 @@ final class Extension
                 'type' => 'object',
                 'properties' => [
                     'max_nodes' => ['type' => 'integer', 'description' => 'Max number of interactive nodes to return. Default 60.'],
+                    'screen' => $screenParam,
                     'serial' => ['type' => 'string', 'description' => 'Optional specific device serial number.'],
                 ],
             ],
-            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale, $screenOf): AgentToolResult {
                 $serial = $params['serial'] ?? null;
+                $display = $screenOf($params, $serial);
                 $maxNodes = max(1, min(200, (int) ($params['max_nodes'] ?? 60)));
 
-                // A failed dump (a secure or custom-drawn surface) is a tree with nothing in it.
-                $rawXml = $adb->dumpWindowHierarchy($serial) ?? '';
+                // A failed dump (a secure or custom-drawn surface) is a tree with nothing in it, and so
+                // is the background screen's: `uiautomator dump` reads the main screen only.
+                $rawXml = $display === null ? ($adb->dumpWindowHierarchy($serial) ?? '') : '';
                 $check = TreeQuality::ofTree($rawXml);
-                $focus = $adb->currentFocus($serial);
+                $focus = $display === null ? $adb->currentFocus($serial) : $adb->displayFocus($display, $serial);
                 $result = [
                     'app' => $focus['package'] ?? 'unknown',
                     'activity' => $focus['activity'] ?? 'unknown',
                 ];
+                if ($display !== null) {
+                    $result['tree'] = 'not available on the background screen (uiautomator reads the main screen only); the screen text or the screenshot stands in for it';
+                }
                 $image = null;
 
                 if ($check['quality'] !== TreeQuality::ADEQUATE) {
                     // The screenshot is taken before the nodes are scaled, so the tree, the OCR
                     // lines and the image all share its coordinates.
-                    $obs = $observeScreen($serial);
+                    $obs = $observeScreen($serial, $display);
 
                     if (VisionOcr::available()) {
                         $lines = VisionOcr::recognize($obs['image']['path'], $obs['viewport_width'], $obs['viewport_height']);
@@ -617,20 +676,22 @@ final class Extension
                         'enum' => ['none', 'screenshot', 'both'],
                         'description' => 'Observe screen after the batch completes. Default screenshot.',
                     ],
+                    'screen' => $screenParam,
                     'serial' => ['type' => 'string', 'description' => 'Optional specific device serial number.'],
                 ],
                 'required' => ['steps'],
             ],
-            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale, $screenOf): AgentToolResult {
                 $steps = (array) ($params['steps'] ?? []);
                 if (count($steps) > 15) {
                     throw new \RuntimeException('Batch steps exceed maximum budget of 15 operations.');
                 }
 
                 $serial = $params['serial'] ?? null;
+                $display = $screenOf($params, $serial);
                 $observe = (string) ($params['observe'] ?? 'screenshot');
 
-                $batchRes = InputManager::batch($adb, $steps, $lastScale, $serial);
+                $batchRes = InputManager::batch($adb, $steps, $lastScale, $serial, $display);
 
                 $contents = [];
                 $res = [
@@ -640,7 +701,7 @@ final class Extension
                 ];
 
                 if ($observe === 'screenshot' || $observe === 'both') {
-                    $obs = $observeScreen($serial);
+                    $obs = $observeScreen($serial, $display);
                     $res['observation'] = [
                         'app' => $obs['app'],
                         'viewport' => ['width' => $obs['viewport_width'], 'height' => $obs['viewport_height']],

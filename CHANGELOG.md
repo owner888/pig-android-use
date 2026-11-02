@@ -8,6 +8,8 @@ have entries (`### New Features`, `### Added`, `### Changed`, `### Fixed`). Note
 
 ### New Features
 
+- The background screen — `screen: "background"` on `android_observe`, `android_tap`, `android_swipe`, `android_type_text`, `android_press_button`, `android_launch_app`, `android_tree` and `android_batch` works on a virtual display the person does not see, so the phone stays theirs while the model works. A helper of the package's own (`helper/`, Java, built to a committed .dex) runs on the phone through `app_process` as the shell user, makes the display and takes its screenshots, reached through `adb forward` with a token; input and launches go through adb with `-d` / `--display`. Android 12+. `/android background [off]`; the helper exits after 15 minutes unused.
+
 - Apps that draw their own UI — `android_tree` judges whether the tree is enough to work from (`tree_quality`: `adequate`, `partial`, `unusable`, `unchecked`, with a `tree_quality_reason`), by rules that follow Mika's `TreeQuality.kt`. When it is not clearly enough, on macOS it reads the screen with Apple's Vision framework (`osascript -l JavaScript`, nothing to install) and returns the lines the tree lacks as `ocr_lines`, with rects in the screenshot's coordinates; elsewhere a partial or unusable tree comes with the screenshot. A failed dump is now an unusable tree that gets the same treatment, instead of an empty answer.
 
 ### Added

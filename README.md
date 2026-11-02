@@ -30,7 +30,7 @@ Before this package existed, Android use was bundled with pig. `pig update` remo
 | `android_connect` | Connect to a device over Wi-Fi |
 | `android_doctor` | adb, ffmpeg, devices, screen size, foreground app, screen state |
 
-Every tool takes an optional `serial` for a machine with several devices. An action can return a screenshot of its result in the same call (`observe: "screenshot"`), so there is no separate call just to look.
+Every tool takes an optional `serial` for a machine with several devices, and the screen tools a `screen` — `main` or `background` (below). An action can return a screenshot of its result in the same call (`observe: "screenshot"`), so there is no separate call just to look.
 
 ### Command
 
@@ -60,6 +60,18 @@ Three more skills from Mika, in Chinese: `messaging` (read chats and mail, draft
 | --- | --- |
 | `ADB_PATH` | The `adb` binary, when it is not on `PATH` or in the Android SDK's usual places |
 | `FFMPEG_PATH` | The `ffmpeg` binary. With ffmpeg, screenshots come from the phone's hardware H.264 encoder (about 0.7 s instead of 2.3 s on a 2K screen); without it, from `screencap` |
+
+### The background screen
+
+`screen: "background"` works on pig's own screen on the phone, which the person does not see: an app opened there with `android_launch_app(screen="background")` runs while they keep using the phone. It is a virtual display made by a small helper pig runs on the phone (`helper/`, Java, no libraries): pig pushes `helper/pig-android-helper.dex` to `/data/local/tmp`, starts it with `app_process` as the shell user, and talks to it through `adb forward`, with a token only pig knows. The helper holds the screen and takes its screenshots; taps, keys and launches go to it with adb (`input -d`, `am start --display`). The view tree is read from the main screen only, so on the background screen `android_tree` gives the screen text (OCR) or the screenshot.
+
+Android 12 or newer. Where the system keeps the screen in the main screen's display group (Android 17 does, `create` reports `group=0`), it sleeps when the phone does; pig does not keep it awake then, since that would keep the person's screen on too. `/android background` shows it, `/android background off` closes it and the app on it; the helper exits by itself after 15 minutes without a request.
+
+The .dex is committed, so nothing needs building to use it. After changing `helper/src`, rebuild it with the Android SDK:
+
+```bash
+ANDROID_HOME=~/Library/Android/sdk helper/build.sh
+```
 
 ### Apps that draw their own UI
 

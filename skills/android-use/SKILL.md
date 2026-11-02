@@ -66,12 +66,24 @@ android_ready()
   - Recent apps: `android_press_button(name="app_switch")`
 - **Launch an app** by package: `android_launch_app(package="com.tencent.mm")`.
 
-## 8. When to stop and hand over
+## 8. The background screen
+
+pig has a screen of its own on the phone that the person does not see: an app opened there runs while they keep using the phone. Use it when the work is long or the person is using the phone; the main screen when they want to watch, or the task needs what only the main screen has (the view tree, the lock screen, notifications).
+
+- Open the app there: `android_launch_app(package="com.tencent.mm", screen="background")`. Then pass `screen="background"` to every call for that work — `android_observe`, `android_tap`, `android_swipe`, `android_type_text`, `android_press_button`, `android_batch`, `android_tree`. A call without it goes to the main screen, in front of the person.
+- Coordinates come from that screen's own screenshot, as on the main screen.
+- `android_tree` has no view tree there (uiautomator reads the main screen only): it returns the screen text by OCR on macOS, or the screenshot.
+- `home` has no launcher there; open another app with `android_launch_app` instead.
+- One app runs in one place: an app open on the background screen is not also on the main screen. If the person opens it themselves, it moves to them; open it again in the background when they are done.
+- It is awake while the phone's screen is: when the phone sleeps or locks, the background screen stops too (on systems that keep it in the main screen's display group, as Android 17 does). Wake the phone with `android_ready` first.
+- It needs Android 12 or newer. `/android background off` closes it and the app on it; it also closes after 15 minutes without use.
+
+## 9. When to stop and hand over
 
 - **Something in the way**: a coupon, promotion or permission dialog over the screen — find its "X" or "Close/Cancel" and dismiss it, then carry on.
 - **Passwords and biometrics**: at a lock-screen password, a WeChat/Alipay payment password, or a face/fingerprint check, stop and tell the person to finish it on the phone themselves; continue once they have.
 
-## 9. Fast decision loop with decision models (System 1 / Jev Fast-Loop)
+## 10. Fast decision loop with decision models (System 1 / Jev Fast-Loop)
 
 To eliminate the multi-second round-trip delay of streaming screenshots back to the main LLM for every step, use layered execution:
 

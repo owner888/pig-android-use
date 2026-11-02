@@ -36,7 +36,8 @@ final class InputManager
         float $y,
         array $pixelToPoint = [1.0, 1.0],
         ?string $serial = null,
-        bool $humanJitter = true
+        bool $humanJitter = true,
+        ?int $display = null
     ): array {
         $scaleX = $pixelToPoint[0] ?? 1.0;
         $scaleY = $pixelToPoint[1] ?? 1.0;
@@ -47,7 +48,7 @@ final class InputManager
         $realX = max(0, (int) round($x * $scaleX) + $jitterX);
         $realY = max(0, (int) round($y * $scaleY) + $jitterY);
 
-        $adb->executeShell("input tap {$realX} {$realY}", $serial);
+        $adb->executeShell(self::input($display) . " tap {$realX} {$realY}", $serial);
 
         return ['real_x' => $realX, 'real_y' => $realY];
     }
@@ -66,7 +67,8 @@ final class InputManager
         float $toY,
         int $durationMs = 300,
         array $pixelToPoint = [1.0, 1.0],
-        ?string $serial = null
+        ?string $serial = null,
+        ?int $display = null
     ): array {
         $scaleX = $pixelToPoint[0] ?? 1.0;
         $scaleY = $pixelToPoint[1] ?? 1.0;
@@ -77,7 +79,7 @@ final class InputManager
         $y2 = max(0, (int) round($toY * $scaleY));
         $duration = max(50, $durationMs);
 
-        $adb->executeShell("input swipe {$x1} {$y1} {$x2} {$y2} {$duration}", $serial);
+        $adb->executeShell(self::input($display) . " swipe {$x1} {$y1} {$x2} {$y2} {$duration}", $serial);
 
         return [
             'from_x' => $x1,
@@ -99,7 +101,8 @@ final class InputManager
         string $direction,
         array $screenSize,
         int $durationMs = 300,
-        ?string $serial = null
+        ?string $serial = null,
+        ?int $display = null
     ): array {
         $w = $screenSize['width'];
         $h = $screenSize['height'];
@@ -116,7 +119,7 @@ final class InputManager
             default => throw new RuntimeException("Invalid swipe direction '{$direction}'. Use up, down, left, or right."),
         };
 
-        self::swipe($adb, (float) $fromX, (float) $fromY, (float) $toX, (float) $toY, $durationMs, [1.0, 1.0], $serial);
+        self::swipe($adb, (float) $fromX, (float) $fromY, (float) $toX, (float) $toY, $durationMs, [1.0, 1.0], $serial, $display);
 
         return [
             'direction' => $direction,
@@ -130,7 +133,7 @@ final class InputManager
     /**
      * Enter text with support for full Unicode, CJK characters and multiline text.
      */
-    public static function typeText(AdbClient $adb, string $text, ?string $serial = null): void
+    public static function typeText(AdbClient $adb, string $text, ?string $serial = null, ?int $display = null): void
     {
         if ($text === '') {
             return;
@@ -138,7 +141,7 @@ final class InputManager
 
         // 1. If it's single-line simple ASCII without spaces or shell-sensitive symbols
         if (preg_match('/^[a-zA-Z0-9._\-]+$/', $text) === 1) {
-            $adb->executeShell("input text '" . addcslashes($text, "'\\") . "'", $serial);
+            $adb->executeShell(self::input($display) . " text '" . addcslashes($text, "'\\") . "'", $serial);
             return;
         }
 
@@ -149,19 +152,19 @@ final class InputManager
 
         if ($res['exit'] === 0) {
             // KEYCODE_PASTE = 279
-            $adb->executeShell('input keyevent 279', $serial);
+            $adb->executeShell(self::input($display) . ' keyevent 279', $serial);
             return;
         }
 
         // 3. Fallback: split word by word or encode spaces as %s for standard input text
         $sanitized = str_replace(' ', '%s', addcslashes($text, "'\\\"`$"));
-        $adb->executeShell("input text '{$sanitized}'", $serial);
+        $adb->executeShell(self::input($display) . " text '{$sanitized}'", $serial);
     }
 
     /**
      * Press a hardware or navigation button.
      */
-    public static function pressButton(AdbClient $adb, string $button, ?string $serial = null): void
+    public static function pressButton(AdbClient $adb, string $button, ?string $serial = null, ?int $display = null): void
     {
         $normalized = strtolower(trim($button));
         $keycode = self::BUTTON_KEYCODES[$normalized] ?? null;
@@ -171,7 +174,7 @@ final class InputManager
             throw new RuntimeException("Unknown button '{$button}'. Available buttons: {$known}");
         }
 
-        $adb->executeShell("input keyevent {$keycode}", $serial);
+        $adb->executeShell(self::input($display) . " keyevent {$keycode}", $serial);
     }
 
     /**
@@ -181,11 +184,18 @@ final class InputManager
      * @param array{float, float} $pixelToPoint
      * @return array{completed: int, results: list<array<string, mixed>>}
      */
+    /** `input`, or `input -d N` for a display other than the main screen. */
+    public static function input(?int $display): string
+    {
+        return $display === null ? 'input' : "input -d {$display}";
+    }
+
     public static function batch(
         AdbClient $adb,
         array $steps,
         array $pixelToPoint = [1.0, 1.0],
-        ?string $serial = null
+        ?string $serial = null,
+        ?int $display = null
     ): array {
         $results = [];
         $completed = 0;
@@ -198,7 +208,7 @@ final class InputManager
                 case 'tap':
                     $x = (float) ($args['x'] ?? 0);
                     $y = (float) ($args['y'] ?? 0);
-                    $res = self::tap($adb, $x, $y, $pixelToPoint, $serial, humanJitter: true);
+                    $res = self::tap($adb, $x, $y, $pixelToPoint, $serial, humanJitter: true, display: $display);
                     $results[] = ['op' => 'tap', 'ok' => true, 'tapped' => $res];
                     break;
 
@@ -212,25 +222,26 @@ final class InputManager
                             (float) $args['to_y'],
                             (int) ($args['duration_ms'] ?? 300),
                             $pixelToPoint,
-                            $serial
+                            $serial,
+                            $display
                         );
                         $results[] = ['op' => 'swipe', 'ok' => true, 'gesture' => $res];
                     } elseif (!empty($args['direction'])) {
                         $screen = $adb->screenSize($serial) ?? ['width' => 1080, 'height' => 2400];
-                        $res = self::swipeDirection($adb, (string) $args['direction'], $screen, (int) ($args['duration_ms'] ?? 300), $serial);
+                        $res = self::swipeDirection($adb, (string) $args['direction'], $screen, (int) ($args['duration_ms'] ?? 300), $serial, $display);
                         $results[] = ['op' => 'swipe', 'ok' => true, 'gesture' => $res];
                     }
                     break;
 
                 case 'type_text':
                     $text = (string) ($args['text'] ?? '');
-                    self::typeText($adb, $text, $serial);
+                    self::typeText($adb, $text, $serial, $display);
                     $results[] = ['op' => 'type_text', 'ok' => true, 'length' => mb_strlen($text)];
                     break;
 
                 case 'press_button':
                     $btn = (string) ($args['name'] ?? 'back');
-                    self::pressButton($adb, $btn, $serial);
+                    self::pressButton($adb, $btn, $serial, $display);
                     $results[] = ['op' => 'press_button', 'ok' => true, 'button' => $btn];
                     break;
 
