@@ -6,6 +6,10 @@ have entries (`### New Features`, `### Added`, `### Changed`, `### Fixed`). Note
 
 ## Unreleased
 
+### Added
+
+- Added a note on Pokémon TCG Pocket (`apps/pokemon-tcgp/APP.md`), this package's own, written from runs on a real phone: the game is one canvas, so read it from `android_tree`'s OCR and screenshot; its title screen, home, icon-only tab bar and battle page; packs, Wonder Pick, missions and solo battles. It takes the place of the `pig-skill-pokemon-tcgp` package, whose pixel coordinates assumed a 540-pixel-wide screen.
+
 ### Changed
 
 - The skill sends the model to an app's shortcuts before its menus: share text or a file with `ACTION_SEND` into the app's own picker, open a page with its link (`ACTION_VIEW`), find things with the app's search box — none of which depends on how the app looks this version. `android_launch_app(screen="background")` returns the background screen's `display` id for `am start --display`.

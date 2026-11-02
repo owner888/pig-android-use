@@ -1,6 +1,6 @@
 # pig-android-use
 
-Android use for the pig coding agent: drive a real or emulated Android phone over ADB, in pure PHP — taps, swipes, Chinese text input, the view tree and screenshots — with notes on how 23 common apps are laid out.
+Android use for the pig coding agent: drive a real or emulated Android phone over ADB, in pure PHP — taps, swipes, Chinese text input, the view tree and screenshots — with notes on how 24 common apps are laid out.
 
 [中文](README.zh-CN.md)
 
@@ -46,9 +46,9 @@ The `android-use` skill tells the model when to use these tools: **adb from bash
 
 ### App knowledge
 
-`skills/android-use/apps/` holds one `APP.md` per app — Android Settings, Baijiahao, Bilibili, BOSS Zhipin, Chrome, Dedao, Douyin, Feishu, Gmail, Jike, Kuaishou, LinkedIn, QQ Mail, Telegram, Toutiao, Uber, Uber Eats, WeChat, Weibo, WhatsApp, Xianyu, Xiaohongshu, Zhihu. Each says what the app's screens are, where its features live and what is easy to get wrong; the skill has the model read the matching one before it works in that app. Apps marked `pace: careful` watch for automation, and the model slows down in them.
+`skills/android-use/apps/` holds one `APP.md` per app — Android Settings, Baijiahao, Bilibili, BOSS Zhipin, Chrome, Dedao, Douyin, Feishu, Gmail, Jike, Kuaishou, LinkedIn, QQ Mail, Telegram, Toutiao, Uber, Uber Eats, WeChat, Weibo, WhatsApp, Xianyu, Xiaohongshu, Zhihu, and the game Pokémon TCG Pocket. Each says what the app's screens are, where its features live and what is easy to get wrong; the skill has the model read the matching one before it works in that app. Apps marked `pace: careful` watch for automation, and the model slows down in them.
 
-These notes come from [Mika](https://github.com/wangzan101/Mika) (Apache-2.0), unmodified and in Chinese, as Mika wrote them — see [NOTICE](NOTICE).
+These notes come from [Mika](https://github.com/wangzan101/Mika) (Apache-2.0), unmodified and in Chinese, as Mika wrote them — see [NOTICE](NOTICE) — except `apps/pokemon-tcgp/`, this package's own note on Pokémon TCG Pocket (a Unity game: what the canvas tree and OCR give, its screens, packs, Wonder Pick, missions and solo battles), written from runs on a real phone.
 
 ### More skills
 

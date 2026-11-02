@@ -20,9 +20,9 @@ Settle what the person wants delivered and when it is done. Treat an action that
 
 ## App knowledge
 
-Before working inside an app, look for its notes in `apps/` next to this file: one folder per app with an `APP.md` (`apps/wechat/APP.md`, `apps/xiaohongshu/APP.md`, …). Match the app by the `packages` or `aliases` in each file's frontmatter, then read that file — it describes the app's screens, where its features live and the places that are easy to get wrong. Covered: Android Settings, Baijiahao, Bilibili, BOSS Zhipin, Chrome, Dedao, Douyin, Feishu, Gmail, Jike, Kuaishou, LinkedIn, QQ Mail, Telegram, Toutiao, Uber, Uber Eats, WeChat, Weibo, WhatsApp, Xianyu, Xiaohongshu, Zhihu.
+Before working inside an app, look for its notes in `apps/` next to this file: one folder per app with an `APP.md` (`apps/wechat/APP.md`, `apps/xiaohongshu/APP.md`, …). Match the app by the `packages` or `aliases` in each file's frontmatter, then read that file — it describes the app's screens, where its features live and the places that are easy to get wrong. Covered: Android Settings, Baijiahao, Bilibili, BOSS Zhipin, Chrome, Dedao, Douyin, Feishu, Gmail, Jike, Kuaishou, LinkedIn, QQ Mail, Telegram, Toutiao, Uber, Uber Eats, WeChat, Weibo, WhatsApp, Xianyu, Xiaohongshu, Zhihu, and the game Pokémon TCG Pocket.
 
-- The notes are in Chinese and were written for Mika (another Android agent), so they describe the apps, not these tools; act on them with the `android_*` tools and adb as usual.
+- The notes are in Chinese. Most were written for Mika (another Android agent), so they describe the apps, not these tools; act on them with the `android_*` tools and adb as usual. A note's screens may be out of date for the version on the phone: what the tree and the screenshot show wins.
 - `open` is the app's name on the launcher; `packages` is what `android_launch_app` and `adb shell am start` take.
 - `pace: careful` marks an app that watches for automation: fewer screens per minute, `android_batch` rather than a burst of single taps, no rapid repeats, and stop as soon as the app says you are going too fast or asks for verification.
 - An app with no folder here has no notes; use the view tree and the screen as usual.

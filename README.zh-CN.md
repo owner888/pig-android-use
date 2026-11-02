@@ -1,6 +1,6 @@
 # pig-android-use
 
-给 pig 编码助手用的 Android 操作扩展：纯 PHP 通过 ADB 操作真机或模拟器——点击、滑动、中文输入、控件树、截图——并附带 23 个常用 App 的界面说明。
+给 pig 编码助手用的 Android 操作扩展：纯 PHP 通过 ADB 操作真机或模拟器——点击、滑动、中文输入、控件树、截图——并附带 24 个常用 App 的界面说明。
 
 [English](README.md)
 
@@ -46,9 +46,9 @@ pig install git:github.com/owner888/pig-android-use
 
 ### App 知识
 
-`skills/android-use/apps/` 里每个 App 一个 `APP.md`——Android 设置、百家号、哔哩哔哩、BOSS 直聘、Chrome、得到、抖音、飞书、Gmail、即刻、快手、LinkedIn、QQ 邮箱、Telegram、今日头条、Uber、Uber Eats、微信、微博、WhatsApp、闲鱼、小红书、知乎。每份说明这个 App 有哪些界面、功能在哪、哪里容易出错；skill 让模型在进入某个 App 之前先读对应的那份。标了 `pace: careful` 的 App 会盯自动化操作，模型在里面会放慢。
+`skills/android-use/apps/` 里每个 App 一个 `APP.md`——Android 设置、百家号、哔哩哔哩、BOSS 直聘、Chrome、得到、抖音、飞书、Gmail、即刻、快手、LinkedIn、QQ 邮箱、Telegram、今日头条、Uber、Uber Eats、微信、微博、WhatsApp、闲鱼、小红书、知乎，以及游戏宝可梦卡牌口袋版。每份说明这个 App 有哪些界面、功能在哪、哪里容易出错；skill 让模型在进入某个 App 之前先读对应的那份。标了 `pace: careful` 的 App 会盯自动化操作，模型在里面会放慢。
 
-这些说明来自 [Mika](https://github.com/wangzan101/Mika)（Apache-2.0），原样收录，保持 Mika 写的中文——见 [NOTICE](NOTICE)。
+这些说明来自 [Mika](https://github.com/wangzan101/Mika)（Apache-2.0），原样收录，保持 Mika 写的中文——见 [NOTICE](NOTICE)。`apps/pokemon-tcgp/` 除外，那是这个包自己写的宝可梦卡牌口袋版说明（Unity 游戏：画布控件树和 OCR 能给什么、各个画面、开包、得卡挑战、任务和单人对战），根据真机上的实测写成。
 
 ### 其他 skill
 
