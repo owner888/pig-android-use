@@ -37,7 +37,7 @@ import java.util.Map;
  */
 public final class Main {
     /** Bumped with every change to the protocol; pig restarts a helper whose version differs. */
-    static final int VERSION = 5;
+    static final int VERSION = 6;
 
     private static final long IDLE_MS = 15 * 60 * 1000;
 
@@ -160,7 +160,10 @@ public final class Main {
                         return error("no background screen " + id + " (the helper may have restarted)");
                     }
                 }
-                return ok().put("xml", ViewTree.dump(context, id));
+                // The display's own size, rotation included: the tree's nodes need not cover it (a
+                // game's window can stop short of the bottom), so its extent is not the screen's.
+                int[] size = AgentDisplay.logicalSize(id);
+                return ok().put("xml", ViewTree.dump(context, id)).put("width", size[0]).put("height", size[1]);
             }
 
             case "activity": {

@@ -117,27 +117,6 @@ final class TreeParser
     }
 
     /**
-     * The screen the tree is on, in its current orientation: the extent of every node's bounds
-     * (the windows cover it). Null for a tree with no bounds in it.
-     *
-     * @return array{width: int, height: int}|null
-     */
-    public static function screenSize(string $xmlContent): ?array
-    {
-        $width = 0;
-        $height = 0;
-
-        if (preg_match_all('/bounds="\[-?\d+,-?\d+\]\[(\d+),(\d+)\]"/', $xmlContent, $m, PREG_SET_ORDER) > 0) {
-            foreach ($m as $b) {
-                $width = max($width, (int) $b[1]);
-                $height = max($height, (int) $b[2]);
-            }
-        }
-
-        return $width > 0 && $height > 0 ? ['width' => $width, 'height' => $height] : null;
-    }
-
-    /**
      * Parse bounds string like "[0,120][1080,2400]" into [x, y, width, height].
      *
      * @return array{int, int, int, int}|null

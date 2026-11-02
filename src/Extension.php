@@ -619,7 +619,8 @@ final class Extension
 
                 // The helper reads either screen. A secure or custom-drawn surface comes back as a
                 // tree with nothing in it, which TreeQuality calls unusable.
-                $rawXml = $helper->tree($serial, $display ?? Helper::MAIN_DISPLAY);
+                $tree = $helper->tree($serial, $display ?? Helper::MAIN_DISPLAY);
+                $rawXml = $tree['xml'];
                 $check = TreeQuality::ofTree($rawXml);
                 $focus = $display === null ? $adb->currentFocus($serial) : $adb->displayFocus($display, $serial);
                 $result = [
@@ -656,14 +657,11 @@ final class Extension
                     $result['viewport'] = ['width' => $obs['viewport_width'], 'height' => $obs['viewport_height']];
                 }
 
-                // The tree says how big the screen is now (rotation included): its rects go into the
-                // coordinates a screenshot of it has, and that screen's taps use the same ratio.
-                $size = TreeParser::screenSize($rawXml);
-                if ($size !== null) {
-                    $space = ScreenCapture::spaceFor($size['width'], $size['height']);
-                    $scales[$display ?? Helper::MAIN_DISPLAY] = $space['pixel_to_point'];
-                    $result['viewport'] = $space['viewport'];
-                }
+                // The helper says how big the screen is now (rotation included): the tree's rects go
+                // into the coordinates a screenshot of it has, and that screen's taps use the same ratio.
+                $space = ScreenCapture::spaceFor($tree['width'], $tree['height']);
+                $scales[$display ?? Helper::MAIN_DISPLAY] = $space['pixel_to_point'];
+                $result['viewport'] = $space['viewport'];
 
                 $nodes = TreeParser::parse($rawXml, $scaleOf($display, $serial), $maxNodes);
                 $result['tree_quality'] = $check['quality'] ?? 'unchecked';

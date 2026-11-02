@@ -274,6 +274,16 @@ final class AgentDisplay {
         return new JSONObject().put("id", id).put("group", displayGroup(id)).put("state", displayState(id));
     }
 
+    /** A display's logical width and height (DisplayInfo, rotation included). */
+    static int[] logicalSize(int displayId) throws Exception {
+        Object global = Class.forName("android.hardware.display.DisplayManagerGlobal").getMethod("getInstance").invoke(null);
+        Object info = global.getClass().getMethod("getDisplayInfo", int.class).invoke(global, displayId);
+        if (info == null) {
+            throw new IllegalStateException("no display " + displayId);
+        }
+        return new int[] {info.getClass().getField("logicalWidth").getInt(info), info.getClass().getField("logicalHeight").getInt(info)};
+    }
+
     /** DisplayInfo.state (hidden field); -1 when it cannot be read. */
     private static int displayState(int displayId) {
         try {

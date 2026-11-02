@@ -63,13 +63,30 @@ final class TreeQualityTest extends TestCase
         $few = '<node text="确定" clickable="true" class="android.widget.Button" bounds="[0,0][1080,200]" />';
         $this->assertSame(['quality' => null, 'reason' => null], TreeQuality::ofTree(self::screen($few)));
 
-        // Six names along the top, and a canvas filling the rest of the screen.
+        // Six names along the top, and a picture with no text taking a third of the screen.
         $named = '';
         foreach (['返回', '标题', '分享', '收藏', '更多', '评论'] as $i => $name) {
             $named .= sprintf('<node text="%s" class="android.widget.TextView" bounds="[%d,0][%d,100]" />', $name, $i * 180, $i * 180 + 170);
         }
-        $canvas = '<node text="" class="android.view.SurfaceView" bounds="[0,100][1080,2400]" />';
-        $this->assertSame(['quality' => null, 'reason' => null], TreeQuality::ofTree(self::screen($named . $canvas)));
+        $picture = '<node text="" class="android.widget.ImageView" bounds="[0,100][1080,900]" />';
+        $this->assertSame(['quality' => null, 'reason' => null], TreeQuality::ofTree(self::screen($named . $picture)));
+    }
+
+    public function testAGameIsACanvasHoweverLittleTextItsLoadingScreenHas(): void
+    {
+        // Unity: one SurfaceView, which may carry a description, filling the window.
+        $unity = '<node text="" content-desc="Game view" resource-id="jp.example:id/unitySurfaceView" class="android.view.SurfaceView" bounds="[0,0][1080,2300]" />';
+        $check = TreeQuality::ofTree(self::screen($unity));
+        $this->assertSame(['quality' => TreeQuality::UNUSABLE, 'reason' => 'canvas'], $check);
+        $this->assertSame($check, TreeQuality::withText($check, []), 'no text found on it does not make it adequate');
+
+        // Half the screen with no text in it, whatever draws it.
+        $named = '';
+        foreach (['返回', '标题', '分享', '收藏', '更多', '评论'] as $i => $name) {
+            $named .= sprintf('<node text="%s" class="android.widget.TextView" bounds="[%d,0][%d,100]" />', $name, $i * 180, $i * 180 + 170);
+        }
+        $map = '<node text="" class="android.view.View" bounds="[0,100][1080,2400]" />';
+        $this->assertSame(['quality' => TreeQuality::UNUSABLE, 'reason' => 'canvas'], TreeQuality::ofTree(self::screen($named . $map)));
     }
 
     public function testTheScreenTextTheTreeLacksSettlesAnUncheckedTree(): void

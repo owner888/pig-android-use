@@ -8,6 +8,9 @@ have entries (`### New Features`, `### Added`, `### Changed`, `### Fixed`). Note
 
 ### Fixed
 
+- Fixed tree rects and screenshots disagreeing on a game: the screen's size was taken from the extent of the tree's nodes, and a game's window can stop short of the bottom, so the tree said 747×1568 where the screenshot of the same screen was 706×1568 and taps went off. The helper now sends the display's own logical size (rotation included) with the tree. Protocol version 6.
+- Fixed a game's loading screen counting as an `adequate` tree: a Unity SurfaceView with a description was named, so the tree was only uncertain, and OCR finding little text settled it as adequate. A drawing surface (SurfaceView, TextureView) or a textless area covering half the screen now makes the tree `unusable` (`canvas`), with the screenshot.
+
 - Fixed the model guessing where a game's icons are: an `unusable` tree came with the screenshot only when OCR found no text at all, so a game screen with a few words on it gave those words and nothing about its icon-only tab bar, and the model divided the screen width by the number of tabs. An `unusable` tree now always comes with the screenshot beside its `ocr_lines`; a `partial` one, which has most of the screen already, still gets the missing text only.
 
 - Fixed the background screen going dark when the phone locked: on systems that put it in the main screen's display group whatever the flags say (Android 17 on Xiaomi), it slept with the phone, and screenshots were black. Before each action on it pig now wakes it if it is off — the phone itself in that case, to its lock screen, not unlocked — and the helper reports a user activity to its group, so it stays on while pig works and sleeps on its own timer once pig stops. The helper's keep-awake reads the display group on every tick, since the group is assigned after the display is made; `ping` reports each screen's group and state.

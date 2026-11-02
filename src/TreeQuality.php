@@ -15,7 +15,9 @@ namespace PigAndroidUse;
  * more that the tree does not have make it `partial`.
  *
  * The rules and thresholds follow Mika's `TreeQuality.kt` (Apache-2.0), rewritten for the
- * `uiautomator dump` XML this package reads.
+ * `uiautomator dump` XML this package reads — plus one of this package's own: a canvas covering
+ * most of the screen (a game's SurfaceView, a blind area of half the screen) makes the tree
+ * unusable outright, however little text OCR then finds on it.
  */
 final class TreeQuality
 {
@@ -28,6 +30,12 @@ final class TreeQuality
 
     /** A subtree with no text that covers this much of the screen (0–1) is a blind area. */
     private const float BLIND_AREA = 0.2;
+
+    /** A blind area or a drawing surface this large (0–1) is the screen: the tree has nothing of it. */
+    private const float CANVAS_AREA = 0.5;
+
+    /** Views an app draws into itself, which the tree knows only as one box. */
+    private const string SURFACE_CLASSES = '/(SurfaceView|TextureView)$/';
 
     /** With this many named elements inside it, a textless node is a backdrop under them, not a blind area. */
     private const int NAMED_INSIDE = 3;
@@ -71,7 +79,13 @@ final class TreeQuality
             return ['quality' => self::UNUSABLE, 'reason' => 'no_text'];
         }
 
-        if (count($named) < self::ENOUGH_NAMED || self::blindArea($root, $named)) {
+        // A game or a map: one surface the app draws, or half the screen with no text in it. OCR
+        // finding little on its loading screen does not make the tree any better.
+        if (self::surfaceArea($root) >= self::CANVAS_AREA || self::blindArea($root, $named) >= self::CANVAS_AREA) {
+            return ['quality' => self::UNUSABLE, 'reason' => 'canvas'];
+        }
+
+        if (count($named) < self::ENOUGH_NAMED || self::blindArea($root, $named) >= self::BLIND_AREA) {
             return ['quality' => null, 'reason' => null];
         }
 
@@ -212,21 +226,21 @@ final class TreeQuality
     }
 
     /**
-     * A node with no text anywhere under it, at least BLIND_AREA of the screen, that is not a
-     * backdrop under named elements.
+     * The largest node with no text anywhere under it that is not a backdrop under named elements,
+     * as a share of the screen (0–1).
      *
      * @param list<array{name: string, control: bool, labelled: bool, bounds: array{int, int, int, int}}> $named
      */
-    private static function blindArea(\SimpleXMLElement $root, array $named): bool
+    private static function blindArea(\SimpleXMLElement $root, array $named): float
     {
         $screen = self::screen($root);
 
         if ($screen <= 0) {
-            return false;
+            return 0.0;
         }
 
-        $found = false;
-        $visit = static function (\SimpleXMLElement $node) use (&$visit, &$found, $screen, $named): bool {
+        $largest = 0.0;
+        $visit = static function (\SimpleXMLElement $node) use (&$visit, &$largest, $screen, $named): bool {
             $attrs = $node->attributes();
             $text = $attrs !== null && (trim((string) ($attrs['text'] ?? '')) !== '' || trim((string) ($attrs['content-desc'] ?? '')) !== '');
 
@@ -238,9 +252,9 @@ final class TreeQuality
 
             $bounds = $attrs !== null && isset($attrs['bounds']) ? self::bounds((string) $attrs['bounds']) : null;
 
-            if (!$text && !$found && $bounds !== null && self::area($bounds) / $screen >= self::BLIND_AREA
+            if (!$text && $bounds !== null && self::area($bounds) / $screen > $largest
                 && count(array_filter($named, static fn (array $e): bool => self::inside($e['bounds'], $bounds))) < self::NAMED_INSIDE) {
-                $found = true;
+                $largest = self::area($bounds) / $screen;
             }
 
             return $text;
@@ -248,7 +262,23 @@ final class TreeQuality
 
         $visit($root);
 
-        return $found;
+        return $largest;
+    }
+
+    /** The largest view the app draws into itself (SurfaceView, TextureView), as a share of the screen. */
+    private static function surfaceArea(\SimpleXMLElement $root): float
+    {
+        $screen = self::screen($root);
+        $largest = 0.0;
+
+        foreach ($screen > 0 ? ($root->xpath('//node[@bounds]') ?: []) : [] as $node) {
+            $bounds = self::bounds((string) $node['bounds']);
+            if ($bounds !== null && preg_match(self::SURFACE_CLASSES, (string) $node['class']) === 1) {
+                $largest = max($largest, self::area($bounds) / $screen);
+            }
+        }
+
+        return $largest;
     }
 
     /** The screen's area: the extent of every node's bounds. */

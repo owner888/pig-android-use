@@ -23,7 +23,7 @@ final class Helper
     public const string REMOTE_DEX = '/data/local/tmp/pig-android-helper.dex';
     public const string MAIN_CLASS = 'pig.androiduse.helper.Main';
     /** Main.VERSION in the helper this package ships. */
-    public const int VERSION = 5;
+    public const int VERSION = 6;
     /** Display.DEFAULT_DISPLAY, the phone's own screen. */
     public const int MAIN_DISPLAY = 0;
     /** Android 12: the per-display user-activity call and the display flags the helper relies on. */
@@ -182,15 +182,20 @@ final class Helper
      * XML `uiautomator dump` writes. Read by the helper through UiAutomation, without the file
      * `uiautomator dump` writes on the phone and reads back for every call.
      */
-    public function tree(?string $serial, int $display): string
+    /**
+     * @return array{xml: string, width: int, height: int} the tree, and the screen's own size now
+     *         (rotation included) — the nodes need not cover it, so their extent is not its size
+     */
+    public function tree(?string $serial, int $display): array
     {
-        $xml = (string) ($this->request($serial, 'tree', ['id' => $display], 20.0)['xml'] ?? '');
+        $reply = $this->request($serial, 'tree', ['id' => $display], 20.0);
+        $xml = (string) ($reply['xml'] ?? '');
 
-        if (!str_contains($xml, '<hierarchy')) {
-            throw new RuntimeException('The helper sent a view tree that is not uiautomator XML.');
+        if (!str_contains($xml, '<hierarchy') || (int) ($reply['width'] ?? 0) <= 0 || (int) ($reply['height'] ?? 0) <= 0) {
+            throw new RuntimeException('The helper sent a view tree without uiautomator XML or the screen size.');
         }
 
-        return $xml;
+        return ['xml' => $xml, 'width' => (int) $reply['width'], 'height' => (int) $reply['height']];
     }
 
     /**

@@ -9,22 +9,12 @@ use PigAndroidUse\ScreenCapture;
 use PigAndroidUse\TreeParser;
 
 /**
- * Tree rects and screenshots of one screen share one coordinate space, so a target read from the
- * tree is tapped where it is whether or not a screenshot came in between.
+ * Tree rects and screenshots of one screen share one coordinate space — the one its own size gives
+ * (the helper reports it with the tree; the nodes need not cover the screen) — so a target read
+ * from the tree is tapped where it is whether or not a screenshot came in between.
  */
 final class CoordinatesTest extends TestCase
 {
-    public function testTheTreeKnowsTheScreenItIsOnRotationIncluded(): void
-    {
-        $portrait = '<hierarchy><node bounds="[0,0][1440,3200]"><node text="a" bounds="[0,96][1440,300]" /></node></hierarchy>';
-        $landscape = '<hierarchy><node bounds="[0,0][3200,1440]" /></hierarchy>';
-
-        $this->assertSame(['width' => 1440, 'height' => 3200], TreeParser::screenSize($portrait));
-        $this->assertSame(['width' => 3200, 'height' => 1440], TreeParser::screenSize($landscape));
-        $this->assertNull(TreeParser::screenSize('<hierarchy></hierarchy>'));
-        $this->assertNull(TreeParser::screenSize(''));
-    }
-
     public function testTheSpaceOfAScreenIsTheOneItsScreenshotHas(): void
     {
         $space = ScreenCapture::spaceFor(1440, 3200);
