@@ -6,6 +6,10 @@ have entries (`### New Features`, `### Added`, `### Changed`, `### Fixed`). Note
 
 ## Unreleased
 
+### New Features
+
+- Apps that draw their own UI — `android_tree` judges whether the tree is enough to work from (`tree_quality`: `adequate`, `partial`, `unusable`, `unchecked`, with a `tree_quality_reason`), by rules that follow Mika's `TreeQuality.kt`. When it is not clearly enough, on macOS it reads the screen with Apple's Vision framework (`osascript -l JavaScript`, nothing to install) and returns the lines the tree lacks as `ocr_lines`, with rects in the screenshot's coordinates; elsewhere a partial or unusable tree comes with the screenshot. A failed dump is now an unusable tree that gets the same treatment, instead of an empty answer.
+
 ### Added
 
 - Added three skills from Mika: `messaging`, `info-research` and `content-transcribe` (with its output-format reference). `messaging` is unmodified; the other two name pig's tools (`web_search`, `fetch_web_page`, `browse_web_page`, `read`) where Mika's named its own, and say so at the top.

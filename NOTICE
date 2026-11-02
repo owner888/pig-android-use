@@ -12,5 +12,9 @@ at the same commit: skills/messaging/ (unmodified), and skills/info-research/
 and skills/content-transcribe/, modified to name pig's tools in place of
 Mika's; each modified file says so at its top.
 
+src/TreeQuality.php follows the rules and thresholds of Mika's
+core/src/main/kotlin/com/wangzan101/mika/core/uistate/TreeQuality.kt,
+rewritten in PHP for uiautomator's XML.
+
 Mika
 Copyright 2026 wangzan101

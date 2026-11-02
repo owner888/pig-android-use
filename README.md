@@ -20,7 +20,7 @@ Before this package existed, Android use was bundled with pig. `pig update` remo
 | --- | --- |
 | `android_ready` | Checks for a device, wakes the screen, returns the foreground app, the viewport and a screenshot. Call it first. |
 | `android_observe` | A screenshot and/or the foreground app |
-| `android_tree` | The view hierarchy as compact nodes (`type`, `text`, `desc`, `id`, `rect`) — exact targets in native apps |
+| `android_tree` | The view hierarchy as compact nodes (`type`, `text`, `desc`, `id`, `rect`) — exact targets in native apps. Says whether the tree is enough (`tree_quality`); when it is not, adds the screen text it lacks (OCR, macOS) or the screenshot |
 | `android_tap` | Tap at screenshot coordinates; converted to device pixels, ±2 px jitter |
 | `android_swipe` | Swipe by direction, or drag between two points |
 | `android_type_text` | Type into the focused field — Chinese, symbols, several lines (through the Android clipboard, no keyboard app needed) |
@@ -60,6 +60,10 @@ Three more skills from Mika, in Chinese: `messaging` (read chats and mail, draft
 | --- | --- |
 | `ADB_PATH` | The `adb` binary, when it is not on `PATH` or in the Android SDK's usual places |
 | `FFMPEG_PATH` | The `ffmpeg` binary. With ffmpeg, screenshots come from the phone's hardware H.264 encoder (about 0.7 s instead of 2.3 s on a 2K screen); without it, from `screencap` |
+
+### Apps that draw their own UI
+
+A game, a canvas or a map has few named nodes or none, so `android_tree` judges the tree before returning it — enough named elements, most controls labelled, no large area without text. When it is not clearly enough, it reads the text on the screen and returns the lines the tree lacks, with their positions. The OCR is Apple's Vision framework, run through `osascript` (`resources/vision-ocr.js`): Chinese and English, nothing to install, **macOS only**. On Linux and Termux there is no OCR, and a tree that falls short comes with the screenshot instead.
 
 Screenshots are scaled down (short side at most 768 px) and kept in the extension's artifacts directory; an incognito session's go with it. On macOS they are converted with `sips`, elsewhere with PHP's GD; with neither, the full-size PNG is sent as it is.
 

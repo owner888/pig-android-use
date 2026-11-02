@@ -39,7 +39,8 @@ android_ready()
 ## 3. The view tree
 
 - **Exact targets in native apps**: when you need the exact text in a native app (Settings, WeChat, shopping apps), a list of search results, or the screenshot is not clear enough, call `android_tree(max_nodes=60)`.
-- It returns the useful nodes with `type`, `text`, `desc`, `id` and a converted `rect: [x, y, w, h]`; tap the centre to interact. Games that draw their own UI have no tree; use the screenshot.
+- It returns the useful nodes with `type`, `text`, `desc`, `id` and a converted `rect: [x, y, w, h]`; tap the centre to interact.
+- It also says whether the tree is enough to work from: `tree_quality` is `adequate`, `partial` (some of the screen is not in it) or `unusable` (an app that draws its own UI: a game, a canvas, a map). When it is not adequate, on macOS the result has `ocr_lines` — the text on the screen the tree lacks, each with a `rect` in the same coordinates — and the screenshot comes along when even OCR found nothing. Elsewhere there is no OCR, and a partial or unusable tree comes with the screenshot instead; `unchecked` means the tree could not be checked against the screen.
 
 ## 4. Batches
 

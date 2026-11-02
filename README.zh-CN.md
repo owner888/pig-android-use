@@ -20,7 +20,7 @@ pig install git:github.com/owner888/pig-android-use
 | --- | --- |
 | `android_ready` | 检查设备、点亮屏幕，返回前台 App、视口大小和一张截图。先调它。 |
 | `android_observe` | 截图和/或前台 App |
-| `android_tree` | 精简的控件树节点（`type`、`text`、`desc`、`id`、`rect`）——原生 App 里的精确目标 |
+| `android_tree` | 精简的控件树节点（`type`、`text`、`desc`、`id`、`rect`）——原生 App 里的精确目标。会说明控件树够不够用（`tree_quality`）；不够用时补上树里没有的屏幕文字（OCR，macOS）或截图 |
 | `android_tap` | 按截图坐标点击；自动换算成设备像素，带 ±2 像素抖动 |
 | `android_swipe` | 按方向滑动，或在两点之间拖动 |
 | `android_type_text` | 往获得焦点的输入框里打字——中文、符号、多行都行（走 Android 剪贴板，不用装输入法 App） |
@@ -60,6 +60,10 @@ pig install git:github.com/owner888/pig-android-use
 | --- | --- |
 | `ADB_PATH` | `adb` 的路径，用于它不在 `PATH` 里、也不在 Android SDK 常见位置的情况 |
 | `FFMPEG_PATH` | `ffmpeg` 的路径。有 ffmpeg 时，截图走手机的硬件 H.264 编码器（2K 屏上约 0.7 秒，不用 ffmpeg 要 2.3 秒）；没有就用 `screencap` |
+
+### 自绘界面的 App
+
+游戏、画布、地图这类 App 的控件树里几乎没有带名字的节点，所以 `android_tree` 返回之前会先判断控件树够不够用：带名字的元素够不够多、控件大多有没有标签、有没有大块区域一个字都没有。拿不准时就读屏幕上的文字，把控件树里没有的那些行连同位置一起返回。OCR 用的是 Apple 的 Vision 框架，通过 `osascript` 调用（`resources/vision-ocr.js`）：支持中英文，什么都不用装，**仅限 macOS**。Linux 和 Termux 上没有 OCR，控件树不够用时改为附上截图。
 
 截图会缩小（短边最多 768 像素），存在扩展自己的 artifacts 目录里；无痕会话的截图随会话一起删除。macOS 上用 `sips` 转换，其他系统用 PHP 的 GD；两者都没有时，原尺寸 PNG 原样发出。
 

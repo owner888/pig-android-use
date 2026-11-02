@@ -532,7 +532,8 @@ final class Extension
         $pi->registerTool(new CustomTool(
             name: 'android_tree',
             label: 'Android Compact Hierarchy Tree',
-            description: 'Dump native Android View hierarchy tree and return compact, token-saving JSON nodes with labels, IDs and bounds.',
+            description: 'Dump native Android View hierarchy tree and return compact, token-saving JSON nodes with labels, IDs and bounds. '
+                . 'When the tree is not enough to work from (an app that draws its own UI), it also returns the screen text the tree lacks (OCR, macOS) or the screenshot.',
             parameters: [
                 'type' => 'object',
                 'properties' => [
@@ -540,27 +541,59 @@ final class Extension
                     'serial' => ['type' => 'string', 'description' => 'Optional specific device serial number.'],
                 ],
             ],
-            execute: static function (string $id, array $params) use ($adb, &$lastScale): AgentToolResult {
+            execute: static function (string $id, array $params) use ($adb, $observeScreen, &$lastScale): AgentToolResult {
                 $serial = $params['serial'] ?? null;
                 $maxNodes = max(1, min(200, (int) ($params['max_nodes'] ?? 60)));
 
-                $rawXml = $adb->dumpWindowHierarchy($serial);
-                if ($rawXml === null) {
-                    return new AgentToolResult([new TextContent((string) json_encode([
-                        'nodes' => [],
-                        'note' => 'Empty or unavailable UI hierarchy (custom-rendered surface or game). Use vision screenshots.',
-                    ]))]);
+                // A failed dump (a secure or custom-drawn surface) is a tree with nothing in it.
+                $rawXml = $adb->dumpWindowHierarchy($serial) ?? '';
+                $check = TreeQuality::ofTree($rawXml);
+                $focus = $adb->currentFocus($serial);
+                $result = [
+                    'app' => $focus['package'] ?? 'unknown',
+                    'activity' => $focus['activity'] ?? 'unknown',
+                ];
+                $image = null;
+
+                if ($check['quality'] !== TreeQuality::ADEQUATE) {
+                    // The screenshot is taken before the nodes are scaled, so the tree, the OCR
+                    // lines and the image all share its coordinates.
+                    $obs = $observeScreen($serial);
+
+                    if (VisionOcr::available()) {
+                        $lines = VisionOcr::recognize($obs['image']['path'], $obs['viewport_width'], $obs['viewport_height']);
+                        $missing = TreeQuality::missingLines($lines, $rawXml);
+                        $check = TreeQuality::withText($check, $missing);
+                        $result['ocr_lines'] = $missing;
+
+                        // OCR found nothing to go on: only the picture is left.
+                        if ($check['quality'] === TreeQuality::UNUSABLE && $lines === []) {
+                            $image = $obs['image'];
+                        }
+                    } elseif ($check['quality'] !== null) {
+                        $result['ocr'] = 'unavailable: Vision OCR runs on macOS only, so the screenshot is attached instead';
+                        $image = $obs['image'];
+                    } else {
+                        $result['ocr'] = 'unavailable: Vision OCR runs on macOS only; the tree could not be checked against the screen, use android_observe if a target is missing';
+                    }
+
+                    $result['viewport'] = ['width' => $obs['viewport_width'], 'height' => $obs['viewport_height']];
                 }
 
                 $nodes = TreeParser::parse($rawXml, $lastScale, $maxNodes);
-                $focus = $adb->currentFocus($serial);
+                $result['tree_quality'] = $check['quality'] ?? 'unchecked';
+                if ($check['reason'] !== null) {
+                    $result['tree_quality_reason'] = $check['reason'];
+                }
+                $result['total_nodes'] = count($nodes);
+                $result['nodes'] = $nodes;
 
-                return new AgentToolResult([new TextContent((string) json_encode([
-                    'app' => $focus['package'] ?? 'unknown',
-                    'activity' => $focus['activity'] ?? 'unknown',
-                    'total_nodes' => count($nodes),
-                    'nodes' => $nodes,
-                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))]);
+                $contents = [new TextContent((string) json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))];
+                if ($image !== null) {
+                    $contents[] = new ImageContent(base64_encode($image['data']), $image['mimeType']);
+                }
+
+                return new AgentToolResult($contents);
             }
         ));
 
