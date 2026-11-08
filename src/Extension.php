@@ -27,10 +27,10 @@ final class Extension
         return (string) json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 
-    public static function register(ExtensionApi $pi): void
+    public static function register(ExtensionApi $pig): void
     {
         $adb = new AdbClient();
-        ScreenCapture::useDirectory($pi->artifactsDirectory(...));
+        ScreenCapture::useDirectory($pig->artifactsDirectory(...));
         /**
          * Each screen's pixel-to-point ratio, by display id: the coordinates the model sees on it
          * (screenshots, tree rects) times this are the device's. Set by every screenshot and every
@@ -72,7 +72,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Slash Command: /android
         // -------------------------------------------------------------------------
-        $pi->registerCommand(
+        $pig->registerCommand(
             name: 'android',
             description: 'Android device controller: /android status | connect <ip:port> | screenshot | background [off]',
             handler: static function (string $args, $ctx) use ($adb, $helper, &$scales): void {
@@ -205,7 +205,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Tool 1: android_doctor
         // -------------------------------------------------------------------------
-        $pi->registerTool(new CustomTool(
+        $pig->registerTool(new CustomTool(
             name: 'android_doctor',
             label: 'Android Doctor',
             description: 'Diagnose local ADB environment, connected Android devices, screen resolution and battery/focus state.',
@@ -238,7 +238,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Tool 2: android_ready
         // -------------------------------------------------------------------------
-        $pi->registerTool(new CustomTool(
+        $pig->registerTool(new CustomTool(
             name: 'android_ready',
             label: 'Android Ready Check',
             description: 'Check if an Android device is connected, wake it up, and return initial viewport dimensions and screenshot.',
@@ -295,7 +295,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Tool 3: android_observe
         // -------------------------------------------------------------------------
-        $pi->registerTool(new CustomTool(
+        $pig->registerTool(new CustomTool(
             name: 'android_observe',
             label: 'Android Observe Screen',
             description: 'Capture the current screen screenshot and foreground app info from the Android device.',
@@ -343,7 +343,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Tool 4: android_tap
         // -------------------------------------------------------------------------
-        $pi->registerTool(new CustomTool(
+        $pig->registerTool(new CustomTool(
             name: 'android_tap',
             label: 'Android Tap',
             description: 'Tap on screen coordinates (x, y). Coordinates can match the scaled screenshot and will automatically convert to physical pixels with anti-ban jitter.',
@@ -397,7 +397,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Tool 5: android_swipe
         // -------------------------------------------------------------------------
-        $pi->registerTool(new CustomTool(
+        $pig->registerTool(new CustomTool(
             name: 'android_swipe',
             label: 'Android Swipe Gesture',
             description: 'Swipe on Android screen by direction ("up", "down", "left", "right") or by explicit from/to coordinates.',
@@ -475,7 +475,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Tool 6: android_type_text
         // -------------------------------------------------------------------------
-        $pi->registerTool(new CustomTool(
+        $pig->registerTool(new CustomTool(
             name: 'android_type_text',
             label: 'Android Type Text',
             description: 'Type text into the input field that has the focus (tap it first) — Chinese, emoji and several lines too. Says how it went in (`method`) and whether the field, read back, holds the text (`verified`): false means look before going on.',
@@ -505,7 +505,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Tool 7: android_press_button
         // -------------------------------------------------------------------------
-        $pi->registerTool(new CustomTool(
+        $pig->registerTool(new CustomTool(
             name: 'android_press_button',
             label: 'Android Press Button',
             description: 'Simulate physical hardware or navigation button presses (home, back, power, volumeup, volumedown, enter, app_switch).',
@@ -539,7 +539,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Tool 8: android_launch_app
         // -------------------------------------------------------------------------
-        $pi->registerTool(new CustomTool(
+        $pig->registerTool(new CustomTool(
             name: 'android_launch_app',
             label: 'Android Launch App',
             description: 'Launch an Android application by package name (e.g. com.tencent.mm, com.android.settings).',
@@ -585,7 +585,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Tool 9: android_connect
         // -------------------------------------------------------------------------
-        $pi->registerTool(new CustomTool(
+        $pig->registerTool(new CustomTool(
             name: 'android_connect',
             label: 'Android Connect Wireless',
             description: 'Connect to an Android device over WiFi/TCP (requires device to have Wireless Debugging enabled).',
@@ -610,7 +610,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Tool 10: android_tree (Compact Accessibility Hierarchy)
         // -------------------------------------------------------------------------
-        $pi->registerTool(new CustomTool(
+        $pig->registerTool(new CustomTool(
             name: 'android_tree',
             label: 'Android Compact Hierarchy Tree',
             description: 'Dump native Android View hierarchy tree and return compact, token-saving JSON nodes with labels, IDs and bounds. '
@@ -698,7 +698,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Tool 11: android_batch (Humanized Anti-Ban Sequence)
         // -------------------------------------------------------------------------
-        $pi->registerTool(new CustomTool(
+        $pig->registerTool(new CustomTool(
             name: 'android_batch',
             label: 'Android Anti-Ban Batch Steps',
             description: 'Execute up to 15 sequential actions with anti-ban random coordinate jitter and humanized micro-delays (150-350ms).',
@@ -759,7 +759,7 @@ final class Extension
         // -------------------------------------------------------------------------
         // Web HTTP Route: /api/android (Screen Monitoring & Inspection)
         // -------------------------------------------------------------------------
-        $pi->registerHttpRoute('/api/android', static function (string $path, array $req) use ($adb, $observeScreen): ?array {
+        $pig->registerHttpRoute('/api/android', static function (string $path, array $req) use ($adb, $observeScreen): ?array {
             if ($path === '/api/android/screen.jpg' && $req['method'] === 'GET') {
                 $raw = $adb->screencapRaw();
                 if ($raw === null) {
